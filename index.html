@@ -173,6 +173,26 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
 .bandeau { font-family: var(--ecran); font-size: 26px; color: var(--encre); background: var(--phosphore); padding: 2px 8px; align-self: flex-start; }
 #jeu-veut { background: var(--sang-vif); color: var(--os); }
 #jeu-nom.condamne { color: var(--sang-vif); text-shadow: 0 0 18px var(--sang); }
+/* La malédiction en cours : un bandeau clair pendant toute la manche suivante, pour que personne n'oublie. */
+#jeu-malediction { background: var(--os); color: var(--encre); }
+/* Le mode Survivant : deux choix côte à côte. Les éliminés restent au tableau, barrés. */
+.choix.deux { grid-template-columns: 1fr 1fr; }
+.tableau li.mort b { text-decoration: line-through; color: var(--os-sourd); }
+.tableau li.mort i { color: var(--os-sourd); }
+/* Ce que le téléphone dit : au phosphore, comme le reste de l'écran de la cassette. */
+.voix { margin: 0; font-family: var(--ecran); font-size: 25px; line-height: 1.15; color: var(--phosphore); text-wrap: pretty; overflow-wrap: anywhere; }
+.voix::before { content: "▶ "; }
+/* L'accusation : la table pointe, puis on touche le prénom du désigné. */
+.cibles { display: flex; flex-wrap: wrap; gap: 8px; }
+.cibles button { min-height: 52px; padding: 8px 16px; border: 1px solid var(--os); border-radius: 4px; background: transparent; color: var(--os); font-family: var(--gothique); font-size: 26px; line-height: 1; cursor: pointer; overflow-wrap: anywhere; }
+.cibles button:active { background: var(--sang); }
+/* Le verdict : la table touche le châtiment choisi, le téléphone le dit ; les autres s'éteignent. */
+.chatiments li { cursor: pointer; }
+.chatiments li.ecarte { opacity: .35; }
+.chatiments li.choisi { color: var(--phosphore); }
+.chatiments li.choisi::before { color: var(--phosphore); }
+/* Un secret est plus long qu'un murmure : la taille baisse pour qu'il tienne en deux ou trois lignes. */
+#noir p.long { font-size: clamp(30px, 7.6vw, 48px); }
 
 #couche-pause { position: fixed; inset: 0; z-index: 5; background: var(--encre); display: flex; flex-direction: column; justify-content: center; gap: 14px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px; }
 #noir { position: fixed; inset: 0; z-index: 6; background: #000; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; }
@@ -243,6 +263,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
       <li>S'il hurle dans tes mains, tu prends une marque et tu bois. Trop de marques, et il te garde.</li>
       <li>Tout gage se remplace par les gorgées annoncées. Qui ne boit pas d'alcool boit de l'eau. Lancer le téléphone : 3 gorgées.</li>
       <li>Il ment parfois. Il s'éteint parfois. Il sonne parfois. Vers la fin, il faut le tenir enfoncé pour le passer. Ne le lâche jamais.</li>
+      <li>Avant la première manche, chacun lui confie en cachette une peur ou un lieu d'enfance. Il s'en servira.</li>
     </ul>
     <div class="bloc">
       <p class="etiquette">Joueurs, dans l'ordre du cercle</p>
@@ -259,6 +280,14 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
         <label><input id="duree-3" type="radio" name="duree" value="3" checked>3<br>environ 20 min</label>
         <label><input id="duree-5" type="radio" name="duree" value="5">5<br>environ 40 min</label>
       </div>
+    </div>
+    <div class="bloc">
+      <p class="etiquette">Fin de la partie</p>
+      <div class="choix deux" role="radiogroup" aria-label="Fin de la partie">
+        <label><input id="mode-classique" type="radio" name="mode" value="classique" checked>Classique<br>le premier au compte perd</label>
+        <label><input id="mode-survivant" type="radio" name="mode" value="survivant">Survivant<br>au compte, tu sors de la table</label>
+      </div>
+      <p class="note" id="note-mode" hidden>Survivant : le dernier vivant gagne. La partie est plus longue, et la mèche raccourcit à chaque éliminé.</p>
     </div>
     <div class="bloc">
       <p class="etiquette">Musique de la mèche</p>
@@ -279,9 +308,24 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
         <input id="cle" type="password" placeholder="Clé AI Studio (AQ.A…)" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Clé Gemini">
         <button class="discret" type="submit">Garder</button>
       </form>
-      <p class="note" id="note-voix">Cassette v3.5</p>
+      <p class="note" id="note-voix">Cassette v3.6</p>
     </div>
     <div class="bas"><button class="gros" id="lancer" type="button" disabled>Ajoute au moins 3 joueurs</button></div>
+  </section>
+
+  <section class="ecr" id="ecr-secrets" hidden>
+    <div class="milieu">
+      <p class="etiquette">Le téléphone veut un secret</p>
+      <h2 id="secret-nom"></h2>
+      <p class="corps">Prends le téléphone sans que personne ne regarde. Écris une peur, ou un lieu de ton enfance. Il s'en souviendra.</p>
+      <form class="ajout" id="form-secret">
+        <input id="secret" type="text" maxlength="40" placeholder="la cave de mes grands-parents" autocomplete="off" autocapitalize="off" enterkeyhint="done" aria-label="Ton secret">
+      </form>
+    </div>
+    <div class="bas">
+      <button class="gros" id="secret-garder" type="button">Garder</button>
+      <button class="discret" id="secret-rien" type="button">Rien à lui dire</button>
+    </div>
   </section>
 
   <section class="ecr" id="ecr-manche" hidden>
@@ -301,6 +345,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
       <span class="bandeau" id="jeu-alerte" hidden>...PAS ENCORE.</span>
       <span class="bandeau" id="jeu-ordre" hidden></span>
       <span class="bandeau" id="jeu-veut" hidden>IL TE VEUT</span>
+      <span class="bandeau" id="jeu-malediction" hidden></span>
       <h2 id="jeu-nom"></h2>
       <p class="question" id="jeu-question"></p>
     </div>
@@ -312,6 +357,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
       <h2 id="coup-nom"></h2>
       <div class="marques" id="coup-marques" role="img"></div>
       <p class="corps" id="coup-texte"></p>
+      <p class="voix" id="coup-voix" hidden></p>
     </div>
     <div class="bas"><button class="gros" id="coup-suite" type="button"></button></div>
   </section>
@@ -320,6 +366,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
     <div class="milieu">
       <p class="etiquette" id="carte-genre"></p>
       <p class="question" id="carte-texte"></p>
+      <div class="cibles" id="carte-joueurs" hidden></div>
     </div>
     <div class="bas"><button class="gros" id="carte-suite" type="button">Fait</button></div>
   </section>
@@ -328,8 +375,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
     <div class="milieu">
       <p class="etiquette">Fin de la cassette</p>
       <h2 id="fin-nom"></h2>
-      <p class="corps">appartient au téléphone. La table choisit le châtiment. Refus : 5 gorgées.</p>
+      <p class="corps" id="fin-texte">appartient au téléphone. La table choisit le châtiment. Refus : 5 gorgées.</p>
       <ul class="chatiments" id="fin-chatiments"></ul>
+      <p class="note">Touche le châtiment choisi : il le dira lui-même.</p>
       <ul class="tableau" id="fin-tableau"></ul>
     </div>
     <div class="bas">
@@ -419,13 +467,22 @@ const CARTES = [
   ["Duel", "{A} contre {B}. Faites votre meilleure tête de cadavre. La table vote, le perdant boit 2 gorgées."],
   ["Duel", "{A} contre {B}. Immobiles comme des statues pendant 30 secondes, la table essaie de vous faire rire. Le premier qui craque boit 2 gorgées."],
 
-  ["Malédiction", "{A} n'a plus le droit de dire « oui » ni « non » jusqu'à la prochaine explosion. Chaque faute : 1 gorgée."],
-  ["Malédiction", "{A} parle de soi à la troisième personne jusqu'à la prochaine explosion. Chaque oubli : 1 gorgée."],
-  ["Malédiction", "{A} parle comme une poupée possédée jusqu'à la prochaine explosion. Chaque oubli : 1 gorgée."],
-  ["Malédiction", "{A} devient l'ombre de {B} jusqu'à la prochaine explosion : quand {B} boit, {A} boit aussi."],
-  ["Malédiction", "Plus aucun prénom jusqu'à la prochaine explosion. Chaque faute : 1 gorgée."],
-  ["Malédiction", "Le mot « boire » est interdit jusqu'à la prochaine explosion. Chaque faute : 1 gorgée."],
-  ["Malédiction", "Qui touche son propre téléphone avant la prochaine explosion boit 2 gorgées."],
+  /* [genre, texte, grâce ?, bandeau ?] : le bandeau d'une malédiction reste affiché pendant toute la manche suivante. */
+  ["Malédiction", "{A} n'a plus le droit de dire « oui » ni « non » jusqu'à la prochaine explosion. Chaque faute : 1 gorgée.", false, "{A} : NI OUI NI NON"],
+  ["Malédiction", "{A} parle de soi à la troisième personne jusqu'à la prochaine explosion. Chaque oubli : 1 gorgée.", false, "{A} : TROISIÈME PERSONNE"],
+  ["Malédiction", "{A} parle comme une poupée possédée jusqu'à la prochaine explosion. Chaque oubli : 1 gorgée.", false, "{A} : POUPÉE POSSÉDÉE"],
+  ["Malédiction", "{A} devient l'ombre de {B} jusqu'à la prochaine explosion : quand {B} boit, {A} boit aussi.", false, "{A}, OMBRE DE {B}"],
+  ["Malédiction", "Plus aucun prénom jusqu'à la prochaine explosion. Chaque faute : 1 gorgée.", false, "AUCUN PRÉNOM"],
+  ["Malédiction", "Le mot « boire » est interdit jusqu'à la prochaine explosion. Chaque faute : 1 gorgée.", false, "MOT INTERDIT : BOIRE"],
+  ["Malédiction", "Qui touche son propre téléphone avant la prochaine explosion boit 2 gorgées.", false, "TÉLÉPHONES INTERDITS"],
+  /* Les malédictions du corps : elles stressent autant qu'elles font rire, et elles se voient. */
+  ["Malédiction", "Jusqu'à la prochaine explosion, {A} ne tient et ne passe le téléphone que de la main gauche. Chaque oubli : 1 gorgée.", false, "{A} : MAIN GAUCHE"],
+  ["Malédiction", "Jusqu'à la prochaine explosion, le téléphone passe sous la table, sans regarder. Qui le fait tomber boit 3 gorgées.", false, "SOUS LA TABLE"],
+  ["Malédiction", "Jusqu'à la prochaine explosion, {A} joue les yeux fermés : son voisin lui lit la question et guide sa main. Les yeux s'ouvrent : 2 gorgées.", false, "{A} : YEUX FERMÉS"],
+  ["Malédiction", "Jusqu'à la prochaine explosion, toute réponse se chante. Réponse parlée : 1 gorgée.", false, "ON CHANTE"],
+  ["Malédiction", "Jusqu'à la prochaine explosion, on se lève pour répondre et on se rassied pour passer. Qui reste assis : 1 gorgée.", false, "DEBOUT POUR RÉPONDRE"],
+  ["Malédiction", "Jusqu'à la prochaine explosion, {A} tient le téléphone à bout de bras au-dessus de sa tête pendant tout son tour. Le bras descend : 1 gorgée.", false, "{A} : À BOUT DE BRAS"],
+  ["Malédiction", "Jusqu'à la prochaine explosion, on passe le téléphone en se regardant dans les yeux, sans un mot. Qui rit : 1 gorgée.", false, "DANS LES YEUX"],
 
   ["Toute la table", "Le dernier à toucher le sol boit 2 gorgées."],
   ["Toute la table", "Le dernier à lever la main boit 2 gorgées."],
@@ -444,6 +501,15 @@ const CARTES = [
   ["Ténèbres", "Silence complet. Écoutez la maison pendant 30 secondes. Le premier qui parle boit 2 gorgées."],
   ["Ténèbres", "{A} fixe son reflet dans l'écran noir d'un téléphone et dit trois fois son propre prénom, lentement. Puis boit 2 gorgées, parce que c'est fait."],
   ["Ténèbres", "{A} chuchote à l'oreille de {B} comment {B} mourrait dans un film d'horreur. {B} le mime pour la table. Personne ne devine : 2 gorgées chacun."],
+
+  /* L'accusation : la table pointe, le désigné reprend le téléphone pour une mèche courte. La règle du geste est ajoutée à l'affichage. */
+  ["Accusation", "Qui mentirait pour sauver sa peau ?"],
+  ["Accusation", "Qui vendrait un ami au monstre pour gagner trente secondes ?"],
+  ["Accusation", "Qui a le plus de choses à cacher à cette table ?"],
+  ["Accusation", "Qui pleurerait le premier dans une maison hantée ?"],
+  ["Accusation", "Qui laisserait les autres mourir pour sauver son téléphone ?"],
+  ["Accusation", "Qui ferait un pacte avec le démon pour une bière ?"],
+  ["Accusation", "Qui trahirait son équipe au premier cri ?"],
 
   ["Grâce", "Le téléphone a pitié. {A} perd une marque.", true],
   ["Grâce", "Le téléphone a pitié. {A} perd une marque, et choisit qui boit 2 gorgées à sa place.", true]
@@ -473,6 +539,20 @@ const CHATIMENTS = [
   "Faire le tour de la pièce à quatre pattes en grognant.", "Chanter un refrain choisi par la table, debout et sans musique.",
   "Se laisser dessiner sur le visage par la table.", "Rejouer sa propre mort, au ralenti, devant tout le monde."
 ];
+
+/* Ce que le téléphone dit entre deux manches quand Gemini ne répond pas : des gabarits sur les faits de la manche. */
+const COMMENTAIRES = [
+  "{perdant} a hésité. {perdant} hésitera encore.", "Je n'ai pas choisi {perdant}. {perdant} s'est laissé prendre.",
+  "{perdant}... ce n'était pas un hasard.", "{passes} passes. Aucune ne m'a échappé.", "La table rit. La table ne rira pas longtemps.",
+  "Quelqu'un ici ment. Pas {perdant}. Pas cette fois.", "{perdant} tremblait avant même de me tenir.", "Je connais le prochain. Il ne le sait pas encore."
+];
+const COMMENTAIRES_LENT = [
+  "{lent} m'a gardé trop longtemps. Je m'en souviendrai.", "{lent} avait la réponse. {lent} a préféré regarder {perdant} brûler.", "{lent}... tu croyais que je ne comptais pas ?"
+];
+const COMMENTAIRES_SECRET = ["{perdant}... je sais : {secret}.", "{secret}... {perdant} croyait l'avoir oublié."];
+/* Le verdict de la fin, dit par la voix : au perdant en Classique, au dernier vivant en Survivant. */
+const VERDICTS = ["{nom}... la cassette est finie. Tu m'appartiens.", "{nom}... je t'avais dit que je te voulais.", "{nom}... tu es à moi, maintenant.", "{nom}... ne rembobine pas. Ça ne changera rien."];
+const SURVIES = ["{nom}... tu as survécu. Pour cette fois.", "{nom}... les autres sont à moi. Toi, je te garde pour plus tard.", "{nom}... dernier debout. Dernier à tomber."];
 
 /* ---------- Petits outils ---------- */
 const $ = id => document.getElementById(id);
@@ -919,7 +999,7 @@ function taisToi() { try { if ("speechSynthesis" in window) speechSynthesis.canc
 /* Avec une clé AI Studio collée sur l'écran d'accueil (gardée dans le téléphone, jamais dans ce fichier), les chuchotements sont dits par
    Gemini 3.8 Flash TTS, voix Enceladus (un souffle), demandés d'avance pour chaque joueur au lancement et gardés en mémoire.
    Sans clé, ou si l'appel échoue, la voix du système prend le relais. */
-const GEMINI = { modele: "gemini-3.8-flash-tts", voix: "Algenib", style: "whispered, hoarse and breathy, very slow, with long pauses, menacing, like a ghost in an old horror film, French" };
+const GEMINI = { modele: "gemini-3.8-flash-tts", texte: "gemini-2.5-flash", voix: "Algenib", style: "whispered, hoarse and breathy, very slow, with long pauses, menacing, like a ghost in an old horror film, French" };
 const cacheGemini = new Map();
 let cleGemini = "", panneGemini = 0;
 function lireCle() { const c = lire("tm-cle-gemini"); cleGemini = typeof c === "string" ? c.trim() : ""; $("cle").value = cleGemini; }
@@ -999,14 +1079,58 @@ function chuchote(texte, fond = .22) {
 function tireRepliques() {
   S.repliques = {};
   S.joueurs.forEach(j => {
-    S.repliques[j.nom] = { chuchots: melange(CHUCHOTS).slice(0, 2).map(t => t.replaceAll("{nom}", j.nom)), telephone: [tire(AU_TELEPHONE).replaceAll("{nom}", j.nom)], ordre: "donne-le à " + j.nom };
+    S.repliques[j.nom] = { chuchots: melange(CHUCHOTS).slice(0, 2).map(t => t.replaceAll("{nom}", j.nom)), telephone: [tire(AU_TELEPHONE).replaceAll("{nom}", j.nom)], ordre: "donne-le à " + j.nom, secret: S.secrets[j.nom] ? j.nom + "... " + S.secrets[j.nom] + "..." : null };
   });
 }
 async function prechargeVoix() {
   if (!cleGemini || !ac) return;
   const textes = [];
-  Object.values(S.repliques).forEach(r => textes.push(...r.chuchots, ...r.telephone, r.ordre));
+  Object.values(S.repliques).forEach(r => textes.push(...r.chuchots, ...r.telephone, r.ordre, ...(r.secret ? [r.secret] : [])));
   for (let i = 0; i < textes.length; i += 3) await Promise.allSettled(textes.slice(i, i + 3).map(geminiParle));
+}
+/* Le téléphone commente la manche : une phrase écrite par Gemini sur les faits (qui a brûlé, qui a traîné, le secret du perdant), dite par la voix.
+   Sans clé, en panne ou trop lent (2,5 s), un gabarit local prend la place : la table ne voit jamais la différence d'attente. */
+let panneTexte = 0;
+async function geminiEcrit(prompt) {
+  const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + GEMINI.texte + ":generateContent", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": cleGemini },
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 1.1, maxOutputTokens: 80, thinkingConfig: { thinkingBudget: 0 } } })
+  });
+  if (!r.ok) { if (r.status !== 429 && r.status < 500) panneTexte = r.status; throw new Error("HTTP " + r.status); }
+  const j = await r.json(), parts = ((((j.candidates || [])[0] || {}).content || {}).parts) || [];
+  return parts.map(p => p.text || "").join(" ");
+}
+function nettoie(t) {
+  const l = String(t || "").replace(/[«»"*_`]/g, "").split("\n").map(s => s.trim()).filter(Boolean)[0] || "";
+  return l.length > 160 ? l.slice(0, 157).replace(/\s+\S*$/, "") + "..." : l;
+}
+function promptCommentaire(f) {
+  const l = [
+    "Tu es la voix d'un téléphone maudit dans un jeu de soirée d'Halloween entre amis adultes : ils se passent le téléphone en répondant à une question, et celui qui le tient quand la mèche explose prend une marque et boit.",
+    "Écris une seule phrase en français, douze mots au plus, que le téléphone chuchote à la table après cette manche : menaçante, un peu moqueuse, personnelle, avec un prénom. Pas de guillemets, pas de tiret, pas d'émoji, pas de vulgarité, aucune violence réelle, rien sur le corps des gens. Réponds par la phrase seule.",
+    "Manche " + f.manche + ", mèche de " + f.duree + " secondes, " + f.passes + " passes.",
+    "Pris par la mèche : " + f.perdant + " (" + f.marques + " marque" + (f.marques > 1 ? "s" : "") + " sur " + f.but + (f.elimine ? ", éliminé de la table" : "") + ")."
+  ];
+  if (f.lent) l.push("Celui qui l'a gardé le plus longtemps : " + f.lent + ", " + f.lentSecondes + " secondes.");
+  if (f.secret) l.push("Secret confié par " + f.perdant + " au début de la soirée : « " + f.secret + " ».");
+  if (f.morts.length) l.push("Déjà sortis de la table : " + f.morts.join(", ") + ".");
+  return l.join("\n");
+}
+async function commenteGemini(f) {
+  if (!cleGemini || panneTexte) return null;
+  try { return nettoie(await geminiEcrit(promptCommentaire(f))) || null; } catch { return null; }
+}
+function commentaireLocal(f) {
+  const choix = [...COMMENTAIRES, ...(f.lent ? COMMENTAIRES_LENT : []), ...(f.secret ? COMMENTAIRES_SECRET : [])];
+  return tire(choix).replaceAll("{perdant}", f.perdant).replaceAll("{lent}", f.lent || f.perdant).replaceAll("{passes}", String(f.passes)).replaceAll("{secret}", f.secret || "");
+}
+function faitsDeManche(perdant) {
+  const lent = [...S.joueurs].sort((a, b) => b.tenu - a.tenu)[0];
+  return {
+    perdant: perdant.nom, marques: perdant.marques, but: S.but, manche: S.manche, passes: S.passes, duree: Math.round(S.duree / 1000),
+    lent: lent && lent !== perdant && lent.tenu > 0 ? lent.nom : null, lentSecondes: lent ? Math.round(lent.tenu / 1000) : 0,
+    elimine: S.mode === "survivant" && perdant.marques >= S.but, morts: S.joueurs.filter(x => x.elimine && x !== perdant).map(x => x.nom), secret: S.secrets[perdant.nom] || null
+  };
 }
 function messageErreur(e) {
   const s = e && e.status;
@@ -1017,7 +1141,7 @@ function messageErreur(e) {
   return s ? "erreur " + s : "réseau ou décodage : " + (e && e.message);
 }
 function etatVoix() {
-  const n = $("note-voix"), tete = "Cassette v3.5 · ";
+  const n = $("note-voix"), tete = "Cassette v3.6 · ";
   if (cleGemini) {
     const fin = "clé …" + cleGemini.slice(-4) + " · voix Gemini : ";
     n.textContent = tete + fin + "vérification...";
@@ -1050,8 +1174,8 @@ function changeFond() {
 }
 
 /* ---------- La partie ---------- */
-const S = { noms: [], joueurs: [], but: 3, musique: "cave", manche: 0, cur: 0, sens: 1, question: "", ecoule: 0, duree: 0, passes: 0, enCours: false, dernier: 0, minuteur: null, battement: null, verrouPasse: null, frayeurs: [], noirT: null, alerteT: null, bandeauT: null, appelT: null, tenueT: null, bandeT: null, neigeT: null, ombreT: null, regardT: null, osdFige: false, poussee: null, repliques: {}, ordre: null, tenir: false, visage: -1 };
-const ECRANS = ["ecr-depart", "ecr-manche", "ecr-jeu", "ecr-coup", "ecr-carte", "ecr-fin"];
+const S = { noms: [], joueurs: [], but: 3, mode: "classique", musique: "cave", manche: 0, cur: 0, sens: 1, question: "", ecoule: 0, duree: 0, passes: 0, enCours: false, dernier: 0, minuteur: null, battement: null, verrouPasse: null, frayeurs: [], noirT: null, alerteT: null, bandeauT: null, appelT: null, tenueT: null, bandeT: null, neigeT: null, ombreT: null, regardT: null, osdFige: false, poussee: null, repliques: {}, ordre: null, tenir: false, visage: -1, secrets: {}, courte: false, malediction: null, debutTour: 0, faits: null, commentaire: null, premierMort: null, puni: "" };
+const ECRANS = ["ecr-depart", "ecr-secrets", "ecr-manche", "ecr-jeu", "ecr-coup", "ecr-carte", "ecr-fin"];
 function montre(id) { ECRANS.forEach(e => { $(e).hidden = e !== id; }); $(id).scrollTop = 0; document.body.classList.toggle("joue", id === "ecr-jeu" || id === "ecr-manche"); }
 function osd(gauche, droite) { $("osd-gauche").textContent = gauche; $("osd-temps").textContent = droite; }
 function danger(p) { document.documentElement.style.setProperty("--danger", p); }
@@ -1085,22 +1209,50 @@ function dessineTableau(ul, tri) {
   ul.replaceChildren(...liste.map(j => {
     const li = document.createElement("li"), b = document.createElement("b"), i = document.createElement("i");
     b.textContent = j.nom; i.textContent = "†".repeat(j.marques);
+    li.classList.toggle("mort", !!j.elimine);
     li.append(b, i);
     return li;
   }));
 }
 
 function nouvellePartie() {
-  S.joueurs = S.noms.map(nom => ({ nom, marques: 0 }));
-  tireRepliques(); prechargeVoix(); prechargeFonds();
+  S.joueurs = S.noms.map(nom => ({ nom, marques: 0, elimine: false, tenu: 0 }));
+  prechargeFonds();
   S.but = Number(document.querySelector('input[name="duree"]:checked').value);
+  S.mode = (document.querySelector('input[name="mode"]:checked') || {}).value || "classique";
+  ecrire("tm-mode", S.mode);
   S.musique = (document.querySelector('input[name="musique"]:checked') || {}).value || "cave";
   ecrire("tm-musique", S.musique);
-  S.manche = 0; S.sens = 1;
+  S.manche = 0; S.sens = 1; S.courte = false; S.malediction = null; S.premierMort = null; S.puni = ""; secretIndex = 0;
   S.cur = Math.floor(Math.random() * S.joueurs.length);
   document.title = "Le Téléphone Maudit";
-  ouvreManche();
+  ouvreSecrets();
 }
+/* ---------- Les secrets ---------- */
+/* Au premier lancement, chaque joueur tape en cachette une peur ou un lieu de son enfance. Le téléphone le garde le temps de la soirée
+   (jamais sur le disque) et le lui chuchote au milieu d'une mèche. Qui ne veut rien dire passe, et n'est plus redemandé. */
+let secretIndex = 0;
+function ouvreSecrets() {
+  const i = S.joueurs.findIndex((j, k) => k >= secretIndex && S.secrets[j.nom] === undefined);
+  if (i < 0) { demarreCassette(); return; }
+  secretIndex = i;
+  const j = S.joueurs[i], suivant = S.joueurs.find((x, k) => k > i && S.secrets[x.nom] === undefined);
+  danger(0);
+  osd("REC · SECRETS", "▶ SP");
+  $("secret-nom").textContent = j.nom;
+  $("secret").value = "";
+  $("secret-garder").textContent = suivant ? "Garder, puis donner à " + suivant.nom : "Garder et lancer la cassette";
+  montre("ecr-secrets");
+}
+function gardeSecret(rien) {
+  const j = S.joueurs[secretIndex];
+  if (!j) { demarreCassette(); return; }
+  S.secrets[j.nom] = rien ? "" : $("secret").value.trim().slice(0, 40);
+  clic();
+  secretIndex++;
+  ouvreSecrets();
+}
+function demarreCassette() { tireRepliques(); prechargeVoix(); ouvreManche(); }
 function ouvreManche() {
   S.manche++; S.sens = 1;
   S.question = prochaineQuestion();
@@ -1110,11 +1262,13 @@ function ouvreManche() {
   changeFond();
   osd("REC · MANCHE " + S.manche, "▶ SP");
   $("manche-question").textContent = S.question;
-  $("manche-qui").textContent = S.joueurs[S.cur].nom + (condamne() ? " commence. Il te veut." : " commence. Prépare ta réponse.");
+  $("manche-qui").textContent = S.joueurs[S.cur].nom + (S.courte ? " commence, désigné par la table. La mèche sera courte." : condamne() ? " commence. Il te veut." : " commence. Prépare ta réponse.");
   dessineTableau($("manche-tableau"));
   montre("ecr-manche");
 }
-const suivantIndex = () => { const n = S.joueurs.length; return S.ordre !== null ? S.ordre : (S.cur + S.sens + n) % n; };
+/* Le prochain porteur dans un sens : en Survivant, les éliminés sont sautés. */
+function prochain(i, sens) { const n = S.joueurs.length; for (let k = 1; k <= n; k++) { const c = (i + sens * k + n * k) % n; if (!S.joueurs[c].elimine) return c; } return i; }
+const suivantIndex = () => S.ordre !== null ? S.ordre : prochain(S.cur, S.sens);
 function majBoutonPasser() {
   const b = $("passer");
   if (b.disabled) return;
@@ -1134,13 +1288,19 @@ function dessineTour() {
   S.verrouPasse = setTimeout(() => { b.disabled = false; majBoutonPasser(); }, 1100);
 }
 function lanceMeche() {
-  S.ecoule = 0; S.passes = 0; S.poussee = null; S.ordre = null; S.tenir = false; S.osdFige = false;
+  S.ecoule = 0; S.passes = 0; S.poussee = null; S.ordre = null; S.tenir = false; S.osdFige = false; S.debutTour = 0;
+  S.joueurs.forEach(j => { j.tenu = 0; });
   document.documentElement.style.setProperty("--avance", 0);
-  const u = usure();
-  /* Une mèche sur six est courte : le premier porteur n'est jamais à l'abri. Les autres raccourcissent avec l'usure. */
-  S.duree = (Math.random() < 1 / 6 ? hasard(8, 15) : hasard(28 - 10 * u, 72 - 12 * u)) * 1000;
+  const u = usure(), morts = S.joueurs.filter(j => j.elimine).length;
+  /* Une mèche sur six est courte : le premier porteur n'est jamais à l'abri. Les autres raccourcissent avec l'usure.
+     Désigné par une accusation : courte à coup sûr. En Survivant, chaque éliminé la raccourcit encore (jamais sous 8 s). */
+  const base = (S.courte || Math.random() < 1 / 6 ? hasard(8, 15) : hasard(28 - 10 * u, 72 - 12 * u)) * 1000;
+  S.duree = Math.max(8000, base * Math.max(.4, 1 - .15 * morts));
+  S.courte = false;
   planifieFrayeurs();
   ["jeu-sens", "jeu-alerte", "jeu-ordre"].forEach(id => { $(id).hidden = true; });
+  $("jeu-malediction").textContent = S.malediction || "";
+  $("jeu-malediction").hidden = !S.malediction;
   $("pause-btn").hidden = false;
   montre("ecr-jeu");
   dessineTour();
@@ -1269,7 +1429,8 @@ function planifieFrayeurs() {
   if (d >= 25000) {
     parfois(.7 + .2 * u, hasard(.15, .9) * d, chuchotement);
     parfois(.6 + .2 * u, hasard(.15, .8) * d, appel);
-    if (S.joueurs.length >= 4) parfois(.6 + .2 * u, hasard(.12, .7) * d, ordre);
+    if (S.joueurs.some(j => S.secrets[j.nom])) parfois(.55 + .3 * u, hasard(.2, .85) * d, secretChuchote);
+    if (S.joueurs.filter(j => !j.elimine).length >= 4) parfois(.6 + .2 * u, hasard(.12, .7) * d, ordre);
     if (Math.random() < .45 + .1 * u) {
       /* Deux poussées sur cinq sont posées pour que la mèche finisse au sommet. */
       const mortel = Math.random() < .4, duree = hasard(mortel ? 4 : 3, 6) * 1000;
@@ -1280,13 +1441,21 @@ function planifieFrayeurs() {
   for (let i = 1; i < lourds.length; i++) if (lourds[i].a - lourds[i - 1].a < 3000) lourds[i].a = lourds[i - 1].a + 3000;
   S.frayeurs = [...lourds, ...liste.filter(e => e.leger)].filter(e => e.a < d - 3500).sort((x, y) => x.a - y.a);
 }
-function coupureNoire() {
-  murmure(.4);
-  const n = $("noir");
-  $("noir-texte").textContent = tire(MURMURES);
+function noirTexte(texte, duree, petit) {
+  const n = $("noir"), p = $("noir-texte");
+  p.textContent = texte; p.classList.toggle("long", !!petit);
   n.hidden = false;
   clearTimeout(S.noirT);
-  S.noirT = setTimeout(() => { n.hidden = true; }, hasard(1300, 2100));
+  S.noirT = setTimeout(() => { n.hidden = true; }, duree);
+}
+function coupureNoire() { murmure(.4); noirTexte(tire(MURMURES), hasard(1300, 2100)); }
+/* Le secret : le téléphone chuchote à un joueur ce qu'il lui a confié au départ (le porteur le plus souvent), et l'écran noir l'affiche. */
+function secretChuchote() {
+  const porteurs = S.joueurs.filter(j => S.secrets[j.nom]);
+  if (!porteurs.length) return;
+  const cur = S.joueurs[S.cur], j = S.secrets[cur.nom] && Math.random() < .6 ? cur : tire(porteurs), r = S.repliques[j.nom];
+  chuchote(r && r.secret ? r.secret : j.nom + "... " + S.secrets[j.nom] + "...", .35);
+  noirTexte(S.secrets[j.nom], hasard(1600, 2400), S.secrets[j.nom].length > 18);
 }
 function bandeauJeu(texte, duree = 1600) {
   const b = $("jeu-alerte");
@@ -1302,8 +1471,8 @@ function chuchotement() {
 }
 /* « Donne-le à Léa » : le téléphone impose le prochain porteur, jamais un voisin. Tout le monde devient une cible. */
 function ordre() {
-  const n = S.joueurs.length;
-  const candidats = S.joueurs.map((_, i) => i).filter(i => i !== S.cur && i !== (S.cur + 1) % n && i !== (S.cur - 1 + n) % n);
+  const av = prochain(S.cur, 1), ar = prochain(S.cur, -1);
+  const candidats = S.joueurs.map((_, i) => i).filter(i => !S.joueurs[i].elimine && i !== S.cur && i !== av && i !== ar);
   if (!candidats.length) return;
   S.ordre = tire(candidats);
   const nom = S.joueurs[S.ordre].nom;
@@ -1392,7 +1561,7 @@ function passe() {
   if (!S.enCours || $("passer").disabled) return;
   clic();
   S.passes++;
-  const n = S.joueurs.length;
+  S.joueurs[S.cur].tenu += S.ecoule - S.debutTour; S.debutTour = S.ecoule;
   if (S.ordre !== null) {
     S.cur = S.ordre; S.ordre = null;
     $("jeu-ordre").hidden = true; $("jeu-sens").hidden = true;
@@ -1400,7 +1569,7 @@ function passe() {
     const inverse = S.passes >= 3 && Math.random() < .1;
     if (inverse) S.sens = -S.sens;
     $("jeu-sens").hidden = !inverse;
-    S.cur = (S.cur + S.sens + n) % n;
+    S.cur = prochain(S.cur, S.sens);
   }
   dessineTour();
 }
@@ -1428,11 +1597,17 @@ function explose() {
   clearTimeout(S.verrouPasse);
   clearTimeout(S.noirT); clearTimeout(S.alerteT); clearTimeout(S.bandeauT);
   cacheVisage();
-  ["jeu-alerte", "jeu-ordre", "pause-btn"].forEach(id => { $(id).hidden = true; });
+  ["jeu-alerte", "jeu-ordre", "jeu-malediction", "pause-btn"].forEach(id => { $(id).hidden = true; });
   const j = S.joueurs[S.cur];
+  j.tenu += S.ecoule - S.debutTour;
   j.marques++;
+  S.malediction = null;
+  /* Le commentaire de la manche part tout de suite : il a le noir, l'éclair et le visage pour arriver avant l'écran du coup. */
+  S.faits = faitsDeManche(j);
+  S.commentaire = commenteGemini(S.faits);
   const n = $("noir"), attente = hasard(1200, 2000);
   $("noir-texte").textContent = tire(MURMURES);
+  $("noir-texte").classList.remove("long");
   n.hidden = false;
   murmure(.4);
   regleAmbiance(1.15);
@@ -1449,7 +1624,10 @@ function explose() {
 function afficheCoup(j) {
   danger(.55);
   osd("REC · MANCHE " + S.manche, "■ STOP");
-  const n = Math.min(j.marques + 1, 4), fini = j.marques >= S.but;
+  const n = Math.min(j.marques + 1, 4), fini = j.marques >= S.but, survivant = S.mode === "survivant";
+  /* En Survivant, le compte atteint sort le joueur de la table ; la partie finit quand il n'en reste qu'un. */
+  if (fini && survivant) { j.elimine = true; if (!S.premierMort) S.premierMort = j; }
+  const vivants = S.joueurs.filter(x => !x.elimine), finPartie = fini && (!survivant || vivants.length <= 1);
   $("coup-nom").textContent = j.nom;
   const m = $("coup-marques");
   m.setAttribute("aria-label", j.marques + " marques sur " + S.but);
@@ -1462,36 +1640,80 @@ function afficheCoup(j) {
   const g = document.createElement("span");
   g.className = "gorgees";
   g.textContent = n + " gorgées";
-  t.append("Il te tenait. ", g, ", et cette marque ne s'efface pas.");
-  $("coup-suite").textContent = fini ? "Voir ce qui t'attend" : "Continuer";
-  $("coup-suite").onclick = fini ? ouvreFin : ouvreCarte;
+  if (fini && survivant && !finPartie) t.append("Il te garde. ", g, ". Tu sors de la table : tu ne réponds plus, tu bois quand on te le dit.");
+  else t.append("Il te tenait. ", g, ", et cette marque ne s'efface pas.");
+  $("coup-suite").textContent = finPartie ? (survivant ? "Voir qui survit" : "Voir ce qui t'attend") : "Continuer";
+  $("coup-suite").onclick = finPartie ? ouvreFin : () => { if (j.elimine) S.cur = prochain(S.cur, S.sens); ouvreCarte(); };
   montre("ecr-coup");
+  montreCommentaire();
 }
-function ouvreCarte() {
-  let [genre, texte, grace] = prochaineCarte();
-  const tous = melange(S.joueurs);
-  let a = tous[0], b = tous[1];
+/* La phrase du téléphone sur la manche : celle de Gemini si elle est arrivée (2,5 s de grâce), sinon un gabarit, et la voix la dit. */
+function montreCommentaire() {
+  const v = $("coup-voix"), faits = S.faits;
+  v.hidden = true; v.textContent = "";
+  if (!faits) return;
+  Promise.race([S.commentaire || Promise.resolve(null), new Promise(r => setTimeout(() => r(null), 2500))]).then(texte => {
+    if ($("ecr-coup").hidden || faits !== S.faits) return;
+    texte = texte || commentaireLocal(faits);
+    v.textContent = texte; v.hidden = false;
+    chuchote(texte, .2);
+  });
+}
+/* Une carte tirée du paquet, ou celle qu'on lui donne (le banc). L'accusation remplace « Fait » par les prénoms à toucher. */
+function ouvreCarte(carte) {
+  let [genre, texte, grace, bandeau] = Array.isArray(carte) ? carte : prochaineCarte();
+  const vivants = S.joueurs.filter(x => !x.elimine), tous = melange(vivants.length >= 2 ? vivants : S.joueurs);
+  let a = tous[0], b = tous[1] || tous[0];
   if (grace) {
     a = S.joueurs[S.cur];
+    if (!a.marques || a.elimine) { const c = vivants.filter(x => x.marques); if (c.length) a = tire(c); }
     a.marques = Math.max(a.marques - 1, 0);
   }
-  texte = texte.replaceAll("{A}", a.nom).replaceAll("{B}", b === a ? tous[2].nom : b.nom);
+  const nomB = b === a ? (tous[2] || b).nom : b.nom;
+  texte = texte.replaceAll("{A}", a.nom).replaceAll("{B}", nomB);
+  const accusation = genre === "Accusation";
+  if (accusation) texte += " À trois, tout le monde pointe du doigt. Le plus désigné reprend le téléphone, et la mèche sera courte. Touche son prénom.";
+  if (bandeau) S.malediction = bandeau.replaceAll("{A}", a.nom.toUpperCase()).replaceAll("{B}", nomB.toUpperCase());
   cloche();
   danger(.2);
   osd("REC · INTERLUDE", "▶ SP");
   $("carte-genre").textContent = genre;
   $("carte-texte").textContent = texte;
+  $("carte-suite").hidden = accusation;
+  const cibles = $("carte-joueurs");
+  cibles.hidden = !accusation;
+  cibles.replaceChildren(...(accusation ? vivants.map(x => { const bt = document.createElement("button"); bt.type = "button"; bt.textContent = x.nom; bt.addEventListener("click", () => designe(S.joueurs.indexOf(x))); return bt; }) : []));
   montre("ecr-carte");
 }
+function designe(i) { clic(); S.cur = i; S.courte = true; ouvreManche(); }
+/* La fin : en Classique le perdant appartient au téléphone ; en Survivant le dernier vivant gagne et le premier tombé paie. La voix dit le verdict,
+   puis le châtiment que la table touche. */
 function ouvreFin() {
-  const j = S.joueurs[S.cur];
+  const survivant = S.mode === "survivant", vivants = S.joueurs.filter(x => !x.elimine);
+  const j = survivant ? (vivants[0] || S.joueurs[S.cur]) : S.joueurs[S.cur], puni = survivant ? (S.premierMort || j) : j;
+  S.puni = puni.nom;
   cloche();
   danger(1);
   osd("FIN", "■ STOP");
   $("fin-nom").textContent = j.nom;
-  $("fin-chatiments").replaceChildren(...melange(CHATIMENTS).slice(0, 3).map(t => { const li = document.createElement("li"); li.textContent = t; return li; }));
+  $("fin-texte").textContent = survivant
+    ? "survit. Les autres appartiennent au téléphone : 2 gorgées chacun. La table choisit le châtiment de " + puni.nom + ", tombé le premier. Refus : 5 gorgées."
+    : "appartient au téléphone. La table choisit le châtiment. Refus : 5 gorgées.";
+  $("fin-chatiments").replaceChildren(...melange(CHATIMENTS).slice(0, 3).map(t => {
+    const li = document.createElement("li");
+    li.textContent = t; li.tabIndex = 0; li.setAttribute("role", "button");
+    li.addEventListener("click", () => choisitChatiment(li, t));
+    li.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choisitChatiment(li, t); } });
+    return li;
+  }));
   dessineTableau($("fin-tableau"), true);
   montre("ecr-fin");
+  chuchote(tire(survivant ? SURVIES : VERDICTS).replaceAll("{nom}", j.nom), .5);
+}
+function choisitChatiment(li, t) {
+  [...$("fin-chatiments").children].forEach(x => { x.classList.toggle("choisi", x === li); x.classList.toggle("ecarte", x !== li); });
+  clic();
+  chuchote(S.puni + "... " + t.charAt(0).toLowerCase() + t.slice(1).replace(/\.$/, ""), .3);
 }
 function retourDepart() {
   suspendsMeche();
@@ -1521,7 +1743,11 @@ $("form-cle").addEventListener("submit", e => {
   setTimeout(() => { b.textContent = "Garder"; }, 3000);
   reveilleSon(); etatVoix();
 });
+document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener("change", () => { $("note-mode").hidden = r.value !== "survivant"; }));
 $("lancer").addEventListener("click", () => { ajouteNom(); if (S.noms.length < 3) return; reveilleSon(); reveilleVoix(); finApercu(); clic(); garderEcran(); nouvellePartie(); });
+$("form-secret").addEventListener("submit", e => { e.preventDefault(); gardeSecret(false); });
+$("secret-garder").addEventListener("click", () => gardeSecret(false));
+$("secret-rien").addEventListener("click", () => gardeSecret(true));
 $("allumer").addEventListener("click", () => { reveilleSon(); reveilleVoix(); lanceMeche(); });
 $("passer").addEventListener("pointerdown", poseDoigt);
 ["pointerup", "pointercancel", "pointerleave"].forEach(ev => $("passer").addEventListener(ev, leveDoigt));
@@ -1544,6 +1770,9 @@ if (Array.isArray(memoire)) S.noms = memoire.filter(n => typeof n === "string").
 const musiqueMemoire = lire("tm-musique");
 const radioMusique = typeof musiqueMemoire === "string" && document.querySelector('input[name="musique"][value="' + musiqueMemoire + '"]');
 if (radioMusique) radioMusique.checked = true;
+const modeMemoire = lire("tm-mode");
+const radioMode = typeof modeMemoire === "string" && document.querySelector('input[name="mode"][value="' + modeMemoire + '"]');
+if (radioMode) { radioMode.checked = true; $("note-mode").hidden = modeMemoire !== "survivant"; }
 lireCle();
 dessineJoueurs();
 </script>
