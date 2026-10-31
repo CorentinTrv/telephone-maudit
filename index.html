@@ -133,7 +133,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
 
 .bloc { display: flex; flex-direction: column; gap: 8px; }
 .ajout { display: flex; gap: 8px; }
-.ajout input {
+.ajout input, .ajout select {
   flex: 1; min-width: 0; min-height: 48px; box-sizing: border-box; padding: 8px 12px; border: 1px solid var(--os-sourd); border-radius: 4px;
   background: var(--encre-2); color: var(--os); font: inherit; font-size: 18px;
 }
@@ -332,7 +332,21 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
         <input id="cle" type="password" placeholder="Clé AI Studio (AQ.A…)" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Clé Gemini">
         <button class="discret" type="submit">Garder</button>
       </form>
-      <p class="note" id="note-voix">Cassette v3.7</p>
+      <div class="bloc" id="bloc-narratrice" hidden>
+        <p class="note">Voix de la narratrice (la démo) : touche « Écouter » pour la juger sur sa première phrase. Le choix reste dans ce téléphone.</p>
+        <div class="ajout">
+          <select id="narratrice" aria-label="Voix de la narratrice">
+            <option value="Despina">Despina</option>
+            <option value="Achernar">Achernar</option>
+            <option value="Vindemiatrix">Vindemiatrix</option>
+            <option value="Gacrux">Gacrux</option>
+            <option value="Sulafat">Sulafat</option>
+            <option value="Algenib">Algenib (la voix du téléphone, en clair)</option>
+          </select>
+          <button class="discret" id="ecouter-narratrice" type="button">Écouter</button>
+        </div>
+      </div>
+      <p class="note" id="note-voix">Cassette v3.8</p>
     </div>
     <div class="bas"><button class="gros" id="lancer" type="button" disabled>Ajoute au moins 3 joueurs</button></div>
   </section>
@@ -1095,12 +1109,16 @@ function taisToi() {
 const GEMINI = {
   modele: "gemini-3.8-flash-tts", texte: "gemini-2.5-flash",
   voix: "Algenib", style: "whispered, hoarse and breathy, very slow, with long pauses, menacing, like a ghost in an old horror film, French",
-  /* La narratrice de la démo : une voix de femme, posée, un peu énigmatique. À choisir à l'oreille parmi les voix féminines (Despina, Achernar, Vindemiatrix, Gacrux). */
+  /* La narratrice de la démo : une voix de femme, posée, un peu énigmatique. Despina par défaut ; le choix se fait à l'oreille sur l'accueil
+     (VOIX_NARRATRICE), gardé dans tm-narratrice, et GEMINI.narratrice est réassignée à l'initialisation et au changement. */
   narratrice: "Despina", styleNarratrice: "a calm, mysterious and enigmatic woman, soft, unhurried and intimate, as if sharing a secret, slightly amused, French"
 };
+const VOIX_NARRATRICE = ["Despina", "Achernar", "Vindemiatrix", "Gacrux", "Sulafat", "Algenib"];
 const cacheGemini = new Map();
-let cleGemini = "", panneGemini = 0;
-function lireCle() { const c = lire("tm-cle-gemini"); cleGemini = typeof c === "string" ? c.trim() : ""; $("cle").value = cleGemini; }
+let cleGemini = "", panneGemini = 0, marquePrecharge = "";
+/* Le choix de la voix de la narratrice n'a de sens qu'avec une clé : le bloc suit la clé. */
+function montreChoixNarratrice() { $("bloc-narratrice").hidden = !cleGemini; }
+function lireCle() { const c = lire("tm-cle-gemini"); cleGemini = typeof c === "string" ? c.trim() : ""; $("cle").value = cleGemini; montreChoixNarratrice(); }
 async function geminiParle(texte, voixId = GEMINI.voix, style = GEMINI.style) {
   if (!cleGemini || !ac || panneGemini) return null;
   const cle = voixId + "\n" + texte;
@@ -1176,18 +1194,41 @@ function joueClair(buf) {
   s.connect(g); g.connect(sortie); g.connect(conv); conv.connect(mouille); mouille.connect(sortie);
   retiens(s);
   s.start();
+  D.clairs++;
 }
-/* Ce que dit la narratrice : Gemini avec sa propre voix (trois secondes de grâce), sinon la voix du système, plus douce que celle du téléphone.
-   Si la démo a changé d'étape entre-temps, la phrase en retard n'est pas dite. */
+/* Ce que dit la narratrice : avec une clé, Gemini avec sa propre voix, attendue jusqu'à douze secondes ; la voix du système, plus douce que
+   celle du téléphone, ne parle que sur une vraie erreur, sans clé, ou si Gemini n'a rien rendu au bout de ces douze secondes (une seule fois :
+   un tampon qui arrive après n'est pas joué). Une phrase en retard n'est pas dite si la démo est fermée, si l'étape a changé ou si une phrase
+   plus récente est partie. On ne compare plus le texte à celui de l'étape : « Bien. Il circule » et « Tiens-le enfoncé » sont dites pendant
+   l'étape 3, et cette garde les rendait muettes avec une clé. */
+let narration = 0;
 function narre(texte) {
   taisToi();
+  const moi = ++narration, etape = D.etape;
   if (cleGemini && ac && !panneGemini) {
-    Promise.race([geminiParle(texte, GEMINI.narratrice, GEMINI.styleNarratrice), new Promise(r => setTimeout(() => r(null), 3000))])
-      .then(buf => { if (D.texte !== texte) return; if (buf) joueClair(buf); else parleSysteme(texte, true); })
-      .catch(() => { if (D.texte === texte) parleSysteme(texte, true); });
+    let dit = false;
+    const actuel = () => !dit && moi === narration && D.etape === etape && !$("ecr-demo").hidden;
+    const secours = () => { if (actuel()) { dit = true; parleSysteme(texte, true); } };
+    const garde = setTimeout(secours, 12000);
+    geminiParle(texte, GEMINI.narratrice, GEMINI.styleNarratrice)
+      .then(buf => { clearTimeout(garde); if (!actuel()) return; if (buf) { dit = true; joueClair(buf); } else secours(); })
+      .catch(() => { clearTimeout(garde); secours(); });
     return;
   }
   parleSysteme(texte, true);
+}
+/* Les neuf phrases de la narratrice (les sept étapes, « Il circule », « Tiens-le enfoncé »), demandées d'avance à Gemini, une toutes les
+   500 ms pour ne pas déclencher un 429, avec la voix choisie. Une fois par clé et par voix : « Garder » et un changement de voix remettent la
+   marque à zéro. sauf : la phrase que l'appelant demande déjà lui-même. Le cache rend la seconde ouverture gratuite. */
+function prechargeNarratrice(sauf) {
+  if (!cleGemini || !ac || panneGemini) return;
+  const marque = cleGemini + "|" + GEMINI.narratrice;
+  if (marque === marquePrecharge) return;
+  marquePrecharge = marque;
+  [...DEMO.map(e => e.texte), DEMO_PASSE, DEMO_TENIR].filter(t => t !== sauf).forEach((t, i) => setTimeout(() => {
+    if (marque !== cleGemini + "|" + GEMINI.narratrice || panneGemini) return;
+    geminiParle(t, GEMINI.narratrice, GEMINI.styleNarratrice).catch(() => { /* la phrase sera redemandée à son étape, le secours existe */ });
+  }, i * 500));
 }
 /* L'histoire : les phrases demandées ensemble (quatre secondes de grâce), puis enchaînées dans la chaîne horrifique, chacune partant quand la
    couche principale de la précédente se termine. Sans clé ou en retard, la voix du système dit le tout. */
@@ -1281,7 +1322,7 @@ function messageErreur(e) {
   return s ? "erreur " + s : "réseau ou décodage : " + (e && e.message);
 }
 function etatVoix() {
-  const n = $("note-voix"), tete = "Cassette v3.7 · ";
+  const n = $("note-voix"), tete = "Cassette v3.8 · ";
   if (cleGemini) {
     const fin = "clé …" + cleGemini.slice(-4) + " · voix Gemini : ";
     n.textContent = tete + fin + "vérification...";
@@ -1961,16 +2002,16 @@ function fermeStats() {
 /* La partie guidée : la narratrice explique en sept étapes ; l'étape « mèche » est une vraie mèche de seize secondes, cœur et musique compris,
    à passer entre « Toi » et « Ton voisin », à tenir enfoncé passé 60 %, et qui finit par hurler avant de passer seule à l'étape suivante.
    Rien n'est écrit dans les profils : la démo ne compte pas. */
-const D = { etape: -1, texte: "", duree: 16000, ecoule: 0, dernier: 0, minuteur: null, battement: null, verrou: null, tenueT: null, tenir: false, passes: 0, porteur: 0, enCours: false, dit: {} };
+const D = { etape: -1, texte: "", duree: 16000, ecoule: 0, dernier: 0, minuteur: null, battement: null, verrou: null, tenueT: null, tenir: false, passes: 0, porteur: 0, enCours: false, dit: {}, clairs: 0 };
 const DEMO_PORTEURS = ["Toi", "Ton voisin"];
 function ouvreDemo() {
   reveilleSon(); reveilleVoix(); finApercu(); clic();
-  D.dit = {};
+  D.dit = {}; D.clairs = 0;
   danger(0); osd("REC · DÉMO", "▶ SP"); $("pause-btn").hidden = true;
   montre("ecr-demo");
   etapeDemo(0);
-  /* Les autres étapes sont demandées à Gemini d'avance, la première passe devant. */
-  if (cleGemini && ac && !panneGemini) setTimeout(() => DEMO.slice(1).forEach(e => geminiParle(e.texte, GEMINI.narratrice, GEMINI.styleNarratrice)), 800);
+  /* Les autres phrases sont demandées à Gemini d'avance, espacées, la première (que narre vient de demander) passant devant. */
+  prechargeNarratrice(DEMO[0].texte);
 }
 function etapeDemo(i) {
   arreteDemoMeche();
@@ -2094,11 +2135,34 @@ $("tester-son").addEventListener("click", () => { reveilleSon(); reveilleVoix();
 $("form-cle").addEventListener("submit", e => {
   e.preventDefault();
   const v = $("cle").value.trim(), b = $("form-cle").querySelector("button");
-  cleGemini = v; panneGemini = 0; cacheGemini.clear();
+  cleGemini = v; panneGemini = 0; cacheGemini.clear(); marquePrecharge = ""; montreChoixNarratrice();
   const gardee = ecrire("tm-cle-gemini", v);
   b.textContent = !v ? "Effacée" : gardee ? "Gardée ✓" : "Prise (non mémorisée)";
   setTimeout(() => { b.textContent = "Garder"; }, 3000);
   reveilleSon(); etatVoix();
+});
+/* La voix de la narratrice : le choix est gardé dans ce téléphone ; « Écouter » juge la première phrase de la démo, déjà demandée pour la démo. */
+$("narratrice").addEventListener("change", e => {
+  const v = e.target.value;
+  if (!VOIX_NARRATRICE.includes(v)) return;
+  ecrire("tm-narratrice", v); GEMINI.narratrice = v; marquePrecharge = "";
+});
+$("ecouter-narratrice").addEventListener("click", async () => {
+  const b = $("ecouter-narratrice");
+  reveilleSon(); reveilleVoix(); taisToi();
+  b.textContent = "…";
+  prechargeNarratrice(DEMO[0].texte);
+  try {
+    const buf = await geminiParle(DEMO[0].texte, GEMINI.narratrice, GEMINI.styleNarratrice);
+    if (buf) joueClair(buf); else $("note-voix").textContent = "Cassette v3.8 · narratrice " + GEMINI.narratrice + " : voix Gemini indisponible, touche « Garder » de nouveau.";
+  } catch (e) { $("note-voix").textContent = "Cassette v3.8 · narratrice " + GEMINI.narratrice + " : " + messageErreur(e); }
+  b.textContent = "Écouter";
+});
+/* Tout geste sur l'accueil, avec une clé, réveille le son (le geste le permet) et lance le préchargement des phrases de la narratrice ;
+   « Garder » est exclu : la clé change dans ce même geste. */
+document.addEventListener("click", e => {
+  if (!cleGemini || $("ecr-depart").hidden || e.target.closest("#form-cle")) return;
+  reveilleSon(); prechargeNarratrice();
 });
 document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener("change", () => { $("note-mode").hidden = r.value !== "survivant"; }));
 $("lancer").addEventListener("click", () => { ajouteNom(); if (S.noms.length < 3) return; reveilleSon(); reveilleVoix(); finApercu(); clic(); garderEcran(); nouvellePartie(); });
@@ -2145,6 +2209,9 @@ const modeMemoire = lire("tm-mode");
 const radioMode = typeof modeMemoire === "string" && document.querySelector('input[name="mode"][value="' + modeMemoire + '"]');
 if (radioMode) { radioMode.checked = true; $("note-mode").hidden = modeMemoire !== "survivant"; }
 lireCle();
+const voixMemoire = lire("tm-narratrice");
+if (VOIX_NARRATRICE.includes(voixMemoire)) GEMINI.narratrice = voixMemoire;
+$("narratrice").value = GEMINI.narratrice;
 lireProfils();
 S.noms.forEach(n => profil(n));
 if (S.noms.length) ecrisProfils();
