@@ -325,6 +325,15 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
       <p class="note">Touche une musique pour l'écouter quelques secondes.</p>
     </div>
     <div class="bloc">
+      <p class="etiquette">Écho de la voix du téléphone</p>
+      <div class="musiques" role="radiogroup" aria-label="Écho de la voix du téléphone" id="echos">
+        <label><input type="radio" name="echo" value="sec"><span>Sec</span><small>la voix devant, un peu de cave</small></label>
+        <label><input type="radio" name="echo" value="cave" checked><span>Cave</span><small>écho et réverbération mesurés</small></label>
+        <label><input type="radio" name="echo" value="crypte"><span>Crypte</span><small>le réglage d'origine, très réverbéré</small></label>
+      </div>
+      <p class="note">Touche un niveau pour l'entendre sur la voix Gemini (avec une clé).</p>
+    </div>
+    <div class="bloc">
       <p class="note">Sur iPhone, le mode silencieux coupe tout le son du jeu. Désactive-le et monte le volume à fond : la fin de la mèche est faite pour être entendue.</p>
       <button class="discret" id="tester-son" type="button">Tester le son</button>
       <p class="note">Voix Gemini (optionnel) : colle une clé AI Studio, elle reste dans ce téléphone. Sans clé, la voix du système.</p>
@@ -351,7 +360,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
           <button class="discret" id="ecouter-narratrice" type="button">Écouter</button>
         </div>
       </div>
-      <p class="note" id="note-voix">Cassette v3.10</p>
+      <p class="note" id="note-voix">Cassette v3.11</p>
     </div>
     <div class="bas"><button class="gros" id="lancer" type="button" disabled>Ajoute au moins 3 joueurs</button></div>
   </section>
@@ -1345,29 +1354,38 @@ async function geminiParle(texte, voixId = GEMINI.voix, style = GEMINI.style, ur
 /* La voix rendue horrifique : trois couches du même énoncé (la voix ralentie d'un ton, une doublure grave et traînante, un souffle saturé),
    un écho court, une réverbération de cave (réponse impulsionnelle synthétique), un trémolo, et le filtre d'un vieux haut-parleur.
    La chaîne prend son contexte en paramètre : le banc la rend hors ligne pour mesurer niveau et durée. */
-let reverbeCave = null;
+/* Trois niveaux d'écho (S.echo, tm-echo). La chaîne a été réglée le 31/10 au matin sur le chuchotement rauque du 3.8 (« crypte ») ; sur une voix
+   claire et pleine (Chirp, le lite) elle devenait envahissante, d'où « cave » par défaut et « sec ». retour/delai : l'écho ; mouille/cave : la
+   réverbération (niveau, durée de la réponse en secondes) ; doublure/souffle : le niveau de la deuxième et de la troisième couche. */
+const ECHOS = {
+  sec:    { retour: .10, delai: .14, mouille: .18, cave: 1.3, doublure: .35, souffle: .22 },
+  cave:   { retour: .16, delai: .17, mouille: .26, cave: 1.7, doublure: .45, souffle: .26 },
+  crypte: { retour: .28, delai: .19, mouille: .40, cave: 2.2, doublure: .55, souffle: .30 }
+};
+const cavesCache = new Map();
+function caveDe(duree) { if (!cavesCache.has(duree)) cavesCache.set(duree, reponseCave(ac, duree)); return cavesCache.get(duree); }
 function reponseCave(ctx, duree = 2.2) {
   const n = Math.floor(ctx.sampleRate * duree), b = ctx.createBuffer(2, n, ctx.sampleRate);
   for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2.6); }
   return b;
 }
 function chaineHorrifique(ctx, buf, dest, quand) {
-  const t = quand === undefined ? ctx.currentTime : quand;
+  const t = quand === undefined ? ctx.currentTime : quand, niv = ECHOS[S.echo] || ECHOS.cave;
   const maitre = ctx.createGain(), trem = ctx.createGain(), bas = ctx.createBiquadFilter();
   maitre.gain.value = .9; trem.gain.value = .85; bas.type = "lowpass"; bas.frequency.value = 3000;
   const lfo = ctx.createOscillator(), prof = ctx.createGain();
   lfo.frequency.value = 5.5; prof.gain.value = .15; lfo.connect(prof); prof.connect(trem.gain);
   trem.connect(bas); bas.connect(maitre); maitre.connect(dest);
   const echo = ctx.createDelay(1), retour = ctx.createGain(), sombre = ctx.createBiquadFilter();
-  echo.delayTime.value = .19; retour.gain.value = .28; sombre.type = "lowpass"; sombre.frequency.value = 1400;
+  echo.delayTime.value = niv.delai; retour.gain.value = niv.retour; sombre.type = "lowpass"; sombre.frequency.value = 1400;
   echo.connect(sombre); sombre.connect(retour); retour.connect(echo); echo.connect(trem);
   const conv = ctx.createConvolver(), mouille = ctx.createGain();
-  if (ctx === ac) { if (!reverbeCave) reverbeCave = reponseCave(ctx); conv.buffer = reverbeCave; } else conv.buffer = reponseCave(ctx);
-  mouille.gain.value = .4; conv.connect(mouille); mouille.connect(trem);
+  conv.buffer = ctx === ac ? caveDe(niv.cave) : reponseCave(ctx, niv.cave);
+  mouille.gain.value = niv.mouille; conv.connect(mouille); mouille.connect(trem);
   const entree = ctx.createGain();
   entree.connect(trem); entree.connect(echo); entree.connect(conv);
   let fin = t;
-  [[.9, .9, 0, false], [.68, .55, .03, false], [1, .3, .06, true]].forEach(([vitesse, niveau, retard, sature]) => {
+  [[.9, .9, 0, false], [.68, niv.doublure, .03, false], [1, niv.souffle, .06, true]].forEach(([vitesse, niveau, retard, sature]) => {
     const s = ctx.createBufferSource(), g = ctx.createGain();
     s.buffer = buf; s.playbackRate.value = vitesse; g.gain.value = niveau;
     let bout = s;
@@ -1390,8 +1408,7 @@ function joueTampon(buf) { chaineHorrifique(ac, buf, sortie); }
 function joueClair(buf) {
   const s = ac.createBufferSource(), g = ac.createGain(), conv = ac.createConvolver(), mouille = ac.createGain();
   s.buffer = buf; g.gain.value = .95;
-  if (!reverbeCave) reverbeCave = reponseCave(ac);
-  conv.buffer = reverbeCave; mouille.gain.value = .14;
+  conv.buffer = caveDe(2.2); mouille.gain.value = .14;
   s.connect(g); g.connect(sortie); g.connect(conv); conv.connect(mouille); mouille.connect(sortie);
   retiens(s);
   s.start();
@@ -1533,7 +1550,7 @@ function messageErreur(e) {
   return s ? "erreur " + s : "réseau ou décodage : " + (e && e.message);
 }
 function etatVoix() {
-  const n = $("note-voix"), tete = "Cassette v3.10 · ";
+  const n = $("note-voix"), tete = "Cassette v3.11 · ";
   if (cleGemini || cleCloud) {
     const fin = "clé …" + [cleGemini, cleCloud].filter(Boolean).map(c => c.slice(-4)).join(" + …") + " · voix Gemini : ";
     n.textContent = tete + fin + "vérification...";
@@ -1572,7 +1589,7 @@ function changeFond() {
 }
 
 /* ---------- La partie ---------- */
-const S = { noms: [], joueurs: [], but: 3, mode: "classique", musique: "cave", manche: 0, cur: 0, sens: 1, question: "", ecoule: 0, duree: 0, passes: 0, enCours: false, dernier: 0, minuteur: null, battement: null, verrouPasse: null, frayeurs: [], noirT: null, alerteT: null, bandeauT: null, appelT: null, tenueT: null, bandeT: null, neigeT: null, ombreT: null, regardT: null, osdFige: false, poussee: null, repliques: {}, ordre: null, tenir: false, visage: -1, secrets: {}, courte: false, malediction: null, debutTour: 0, faits: null, commentaire: null, premierMort: null, puni: "", histoires: {}, comptee: false, ecranAvant: "ecr-depart" };
+const S = { noms: [], joueurs: [], but: 3, mode: "classique", musique: "cave", echo: "cave", manche: 0, cur: 0, sens: 1, question: "", ecoule: 0, duree: 0, passes: 0, enCours: false, dernier: 0, minuteur: null, battement: null, verrouPasse: null, frayeurs: [], noirT: null, alerteT: null, bandeauT: null, appelT: null, tenueT: null, bandeT: null, neigeT: null, ombreT: null, regardT: null, osdFige: false, poussee: null, repliques: {}, ordre: null, tenir: false, visage: -1, secrets: {}, courte: false, malediction: null, debutTour: 0, faits: null, commentaire: null, premierMort: null, puni: "", histoires: {}, comptee: false, ecranAvant: "ecr-depart" };
 const ECRANS = ["ecr-depart", "ecr-secrets", "ecr-manche", "ecr-jeu", "ecr-coup", "ecr-carte", "ecr-fin", "ecr-histoire", "ecr-stats", "ecr-demo"];
 function montre(id) { ECRANS.forEach(e => { $(e).hidden = e !== id; }); $(id).scrollTop = 0; document.body.classList.toggle("joue", ["ecr-jeu", "ecr-manche", "ecr-histoire", "ecr-demo"].includes(id)); }
 function osd(gauche, droite) { $("osd-gauche").textContent = gauche; $("osd-temps").textContent = droite; }
@@ -2347,6 +2364,15 @@ function retourDepart() {
 /* ---------- Branchements ---------- */
 $("form-nom").addEventListener("submit", e => { e.preventDefault(); ajouteNom(); });
 document.querySelectorAll('input[name="musique"]').forEach(r => r.addEventListener("click", () => { ecrire("tm-musique", r.value); apercu(r.value); }));
+/* Le niveau d'écho : gardé dans le téléphone ; l'aperçu rejoue « il connaît ton prénom » (le cache, ou la mémoire du téléphone, ou une requête
+   urgente la première fois) dans la chaîne au nouveau niveau. Sans clé la voix du système ne passe pas par la chaîne : rien à entendre. */
+document.querySelectorAll('input[name="echo"]').forEach(r => r.addEventListener("click", async () => {
+  S.echo = r.value; ecrire("tm-echo", r.value);
+  reveilleSon(); finApercu();
+  if (!voixActive()) return;
+  taisToi();
+  try { const buf = await geminiParle("il connaît ton prénom"); if (buf && S.echo === r.value) joueTampon(buf); } catch { /* l'aperçu est facultatif */ }
+}));
 $("tester-son").addEventListener("click", () => { reveilleSon(); reveilleVoix(); finApercu(); coeur(1); setTimeout(coups, 400); setTimeout(murmure, 1500); setTimeout(() => { etatVoix(); if (!cleGemini && !cleCloud) chuchote("il connaît ton prénom"); }, 2800); });
 /* « Garder » : la clé est prise en mémoire tout de suite, même si le navigateur refuse de la mémoriser entre deux ouvertures ; le bouton le dit. */
 $("form-cle").addEventListener("submit", e => {
@@ -2381,8 +2407,8 @@ $("ecouter-narratrice").addEventListener("click", async () => {
   b.textContent = "…";
   try {
     const buf = await geminiParle(DEMO[0].texte, GEMINI.narratrice, GEMINI.styleNarratrice);
-    if (buf) joueClair(buf); else $("note-voix").textContent = "Cassette v3.10 · narratrice " + GEMINI.narratrice + " : voix Gemini indisponible, touche « Garder » de nouveau.";
-  } catch (e) { $("note-voix").textContent = "Cassette v3.10 · narratrice " + GEMINI.narratrice + " : " + messageErreur(e); }
+    if (buf) joueClair(buf); else $("note-voix").textContent = "Cassette v3.11 · narratrice " + GEMINI.narratrice + " : voix Gemini indisponible, touche « Garder » de nouveau.";
+  } catch (e) { $("note-voix").textContent = "Cassette v3.11 · narratrice " + GEMINI.narratrice + " : " + messageErreur(e); }
   b.textContent = "Écouter";
 });
 document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener("change", () => { $("note-mode").hidden = r.value !== "survivant"; }));
@@ -2426,6 +2452,9 @@ if (Array.isArray(memoire)) S.noms = memoire.filter(n => typeof n === "string").
 const musiqueMemoire = lire("tm-musique");
 const radioMusique = typeof musiqueMemoire === "string" && document.querySelector('input[name="musique"][value="' + musiqueMemoire + '"]');
 if (radioMusique) radioMusique.checked = true;
+const echoMemoire = lire("tm-echo");
+const radioEcho = typeof echoMemoire === "string" && ECHOS[echoMemoire] && document.querySelector('input[name="echo"][value="' + echoMemoire + '"]');
+if (radioEcho) { radioEcho.checked = true; S.echo = echoMemoire; }
 const modeMemoire = lire("tm-mode");
 const radioMode = typeof modeMemoire === "string" && document.querySelector('input[name="mode"][value="' + modeMemoire + '"]');
 if (radioMode) { radioMode.checked = true; $("note-mode").hidden = modeMemoire !== "survivant"; }
