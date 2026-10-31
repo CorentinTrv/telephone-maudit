@@ -117,12 +117,13 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
 }
 .gros:active { background: var(--sang-vif); }
 .gros[disabled] { background: var(--encre-2); color: var(--os-sourd); cursor: default; }
-#passer { min-height: 104px; font-size: 38px; position: relative; z-index: 0; overflow: hidden; -webkit-touch-callout: none; }
-#passer[disabled] { font-family: var(--ecran); font-size: 26px; }
+/* Le bouton de la mèche, dans le jeu et dans la démo. */
+.meche { min-height: 104px; font-size: 38px; position: relative; z-index: 0; overflow: hidden; -webkit-touch-callout: none; }
+.meche[disabled] { font-family: var(--ecran); font-size: 26px; }
 /* L'appui long : passé 60 % de la mèche, le bouton se remplit en une demi-seconde sous le doigt. Lâcher avant annule. */
-#passer::after { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--sang-vif); transform: scaleX(0); transform-origin: left; }
-#passer.tient::after { animation: remplit .45s linear forwards; }
-#passer.tient:active { background: var(--sang); } /* sinon :active met tout le bouton en rouge vif et la jauge, de la même couleur, disparaît */
+.meche::after { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--sang-vif); transform: scaleX(0); transform-origin: left; }
+.meche.tient::after { animation: remplit .45s linear forwards; }
+.meche.tient:active { background: var(--sang); } /* sinon :active met tout le bouton en rouge vif et la jauge, de la même couleur, disparaît */
 @keyframes remplit { to { transform: scaleX(1); } }
 .discret {
   min-height: 44px; padding: 8px 14px; border: 1px solid var(--os-sourd); border-radius: 4px; background: transparent;
@@ -193,6 +194,23 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
 .chatiments li.choisi::before { color: var(--phosphore); }
 /* Un secret est plus long qu'un murmure : la taille baisse pour qu'il tienne en deux ou trois lignes. */
 #noir p.long { font-size: clamp(30px, 7.6vw, 48px); }
+/* Les profils : les prénoms déjà venus, en pointillé, à toucher pour les asseoir à la table. */
+.profils { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.profils button { min-height: 40px; padding: 4px 12px; border: 1px dashed var(--os-sourd); border-radius: 4px; background: transparent; color: var(--os); font: inherit; font-size: 17px; cursor: pointer; overflow-wrap: anywhere; }
+.profils button:active { background: var(--encre-2); }
+.deux { display: flex; gap: 8px; }
+.deux > button { flex: 1; }
+/* Le récap entre deux manches : les gorgées annoncées par le téléphone à côté des marques. */
+.tableau small { font-size: 16px; color: var(--os-sourd); margin-left: 4px; }
+/* Les stats : une ligne par profil, le bouton pour l'oublier à droite ; le plus condamné en rouge. */
+.stats { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.stats li { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: start; padding: 10px 0; border-top: 1px solid var(--encre-2); }
+.stats b { grid-column: 1; grid-row: 1; font-family: var(--gothique); font-weight: 400; font-size: 28px; line-height: 1; color: var(--os); overflow-wrap: anywhere; }
+.stats small { grid-column: 1; grid-row: 2; font-size: 16px; line-height: 1.3; color: var(--os-sourd); }
+.stats li.pire b { color: var(--sang-vif); }
+.stats button { grid-column: 2; grid-row: 1 / span 2; min-height: 40px; padding: 4px 10px; font-size: 15px; }
+/* La narratrice de la démo : une autre voix, un autre texte, en os et non au phosphore du téléphone. */
+.narratrice { margin: 0; font-size: clamp(21px, 5.6vw, 27px); line-height: 1.3; font-weight: 500; color: var(--os); text-wrap: pretty; }
 
 #couche-pause { position: fixed; inset: 0; z-index: 5; background: var(--encre); display: flex; flex-direction: column; justify-content: center; gap: 14px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px; }
 #noir { position: fixed; inset: 0; z-index: 6; background: #000; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; }
@@ -265,6 +283,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
       <li>Il ment parfois. Il s'éteint parfois. Il sonne parfois. Vers la fin, il faut le tenir enfoncé pour le passer. Ne le lâche jamais.</li>
       <li>Avant la première manche, chacun lui confie en cachette une peur ou un lieu d'enfance. Il s'en servira.</li>
     </ul>
+    <div class="deux">
+      <button class="discret" id="ouvrir-demo" type="button">Comprendre le jeu</button>
+      <button class="discret" id="ouvrir-stats" type="button">Les stats</button>
+    </div>
     <div class="bloc">
       <p class="etiquette">Joueurs, dans l'ordre du cercle</p>
       <form class="ajout" id="form-nom">
@@ -272,6 +294,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
         <button class="discret" type="submit">Ajouter</button>
       </form>
       <ul class="joueurs" id="liste-joueurs"></ul>
+      <p class="note" id="profils-note" hidden>Déjà venus : touche un prénom pour l'asseoir à la table.</p>
+      <ul class="profils" id="liste-profils" hidden></ul>
     </div>
     <div class="bloc">
       <p class="etiquette">Marques avant la fin</p>
@@ -308,7 +332,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
         <input id="cle" type="password" placeholder="Clé AI Studio (AQ.A…)" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Clé Gemini">
         <button class="discret" type="submit">Garder</button>
       </form>
-      <p class="note" id="note-voix">Cassette v3.6</p>
+      <p class="note" id="note-voix">Cassette v3.7</p>
     </div>
     <div class="bas"><button class="gros" id="lancer" type="button" disabled>Ajoute au moins 3 joueurs</button></div>
   </section>
@@ -334,6 +358,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
       <p class="etiquette">Question de la manche</p>
       <p class="question" id="manche-question"></p>
       <p class="corps" id="manche-qui"></p>
+      <p class="etiquette" id="manche-recap" hidden>Où en est la table</p>
       <ul class="tableau" id="manche-tableau"></ul>
     </div>
     <div class="bas"><button class="gros" id="allumer" type="button">Allumer la mèche</button></div>
@@ -349,7 +374,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
       <h2 id="jeu-nom"></h2>
       <p class="question" id="jeu-question"></p>
     </div>
-    <div class="bas"><button class="gros" id="passer" type="button"></button></div>
+    <div class="bas"><button class="gros meche" id="passer" type="button"></button></div>
   </section>
 
   <section class="ecr" id="ecr-coup" hidden>
@@ -382,7 +407,42 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
     </div>
     <div class="bas">
       <button class="gros" id="rejouer" type="button">Rembobiner et rejouer</button>
-      <button class="discret" id="changer" type="button">Changer les joueurs</button>
+      <div class="deux">
+        <button class="discret" id="changer" type="button">Changer les joueurs</button>
+        <button class="discret" id="fin-stats" type="button">Les stats</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="ecr" id="ecr-histoire" hidden>
+    <div class="milieu">
+      <p class="etiquette">La cassette commence</p>
+      <p class="voix" id="histoire-texte"></p>
+    </div>
+    <div class="bas"><button class="gros" id="histoire-suite" type="button">Première manche</button></div>
+  </section>
+
+  <section class="ecr" id="ecr-stats" hidden>
+    <div class="milieu">
+      <p class="etiquette">Les stats de la table</p>
+      <p class="corps" id="stats-titre"></p>
+      <ul class="stats" id="stats-liste"></ul>
+      <p class="note">Les gorgées comptées sont celles que le téléphone annonce ; celles des cartes restent entre vous. Oublier un profil efface tout ce qu'il a vécu.</p>
+    </div>
+    <div class="bas"><button class="discret" id="stats-retour" type="button">Retour</button></div>
+  </section>
+
+  <section class="ecr" id="ecr-demo" hidden>
+    <div class="milieu" id="demo-milieu">
+      <p class="etiquette" id="demo-etiquette">Comprendre le jeu</p>
+      <h2 id="demo-nom" hidden></h2>
+      <p class="question" id="demo-question" hidden></p>
+      <p class="narratrice" id="demo-texte"></p>
+    </div>
+    <div class="bas">
+      <button class="gros meche" id="demo-passer" type="button" hidden></button>
+      <button class="gros" id="demo-suite" type="button">Suite</button>
+      <button class="discret" id="demo-quitter" type="button">Quitter la démo</button>
     </div>
   </section>
 </main>
@@ -553,6 +613,30 @@ const COMMENTAIRES_SECRET = ["{perdant}... je sais : {secret}.", "{secret}... {p
 /* Le verdict de la fin, dit par la voix : au perdant en Classique, au dernier vivant en Survivant. */
 const VERDICTS = ["{nom}... la cassette est finie. Tu m'appartiens.", "{nom}... je t'avais dit que je te voulais.", "{nom}... tu es à moi, maintenant.", "{nom}... ne rembobine pas. Ça ne changera rien."];
 const SURVIES = ["{nom}... tu as survécu. Pour cette fois.", "{nom}... les autres sont à moi. Toi, je te garde pour plus tard.", "{nom}... dernier debout. Dernier à tomber."];
+
+/* L'histoire de la cassette, dite par la voix du téléphone avant la première manche : trois phrases courtes (la chaîne horrifique les
+   enchaîne une à une), une histoire par musique, racontée une fois par musique et par soirée. */
+const HISTOIRES = {
+  cave: ["On m'a trouvé dans une cave, sous une maison qui n'avait plus de porte.", "Celui qui m'a remonté n'est jamais redescendu. Les autres ont continué à jouer.", "Ce soir, la cave, c'est ici. Et je sais déjà qui restera en bas."],
+  boite: ["Quand j'étais une berceuse, une petite fille m'écoutait chaque nuit pour s'endormir.", "Une nuit, la boîte s'est détraquée. Elle a continué à chanter. La fille, non.", "Écoutez bien la mélodie. Quand elle se faussera, il sera trop tard pour me lâcher."],
+  orgue: ["Dans la crypte, l'organiste jouait pour des bancs vides. Il disait qu'ils étaient pleins.", "Un soir, les accords ont glissé tout seuls, sans ses mains. On l'a retrouvé assis, souriant.", "Chaque accord qui glisse ce soir est une place qui se libère. Ne la prenez pas."],
+  vent: ["La maison était vide depuis dix ans. Pourtant, chaque nuit, un robinet gouttait.", "Les voisins entendaient des pas, des craquements, et un téléphone qui sonnait dans le vide.", "Personne n'a jamais répondu. Ce soir, je rappelle. L'un de vous décrochera."],
+  aucune: ["Pas de musique, ce soir. Seulement un cœur. Le vôtre, croyez-vous.", "Il battait déjà quand on m'a enterré. Il bat encore. Il ne s'est jamais arrêté.", "Quand il s'emballera, ne cherchez pas le vôtre. C'est le mien que vous entendrez."]
+};
+
+/* La démo : la narratrice (une autre voix, une femme, énigmatique) explique le jeu en sept étapes. L'étape « mèche » est une vraie mèche
+   de seize secondes à passer et à tenir, qui finit par hurler. Rien de la démo n'est compté dans les profils. */
+const DEMO = [
+  { texte: "Approche. Je suis la voix de cette cassette, celle qui reste quand il se tait. Avant qu'il ne se réveille, laisse-moi te dire comment on survit à cette table." },
+  { texte: "Le téléphone cache une mèche. Personne ne sait quand elle arrive au bout. Parfois une minute. Parfois dix secondes. Il ne prévient jamais." },
+  { texte: "Une question s'affiche. Tu réponds à voix haute, puis tu le passes à ton voisin. Pas de réponse, pas de passe. Essaie, il t'écoute.", meche: true },
+  { texte: "Tu l'as senti ? Il a hurlé dans tes mains. Dans la vraie partie, c'est une marque, et tu bois. Trop de marques, et il te garde." },
+  { texte: "Il ment. Il s'éteint, il sonne, il chuchote des prénoms, il dit à qui le donner. Vers la fin, il faut le tenir enfoncé pour le passer. Ne le lâche jamais." },
+  { texte: "Entre deux manches, une carte. Un vote, un gage, un duel, une malédiction. Parfois une grâce. Parfois une accusation, et la table pointe du doigt." },
+  { texte: "À la fin, celui qu'il garde subit le châtiment choisi par la table. Avant de commencer, chacun lui confiera un secret, en cachette. Il s'en servira. Maintenant, va. Et ne te retourne pas.", fin: true }
+];
+const DEMO_PASSE = "Bien. Il circule. Et pendant qu'il circule, la mèche brûle.";
+const DEMO_TENIR = "Tiens-le enfoncé, maintenant. Lâcher trop tôt ne compte pas.";
 
 /* ---------- Petits outils ---------- */
 const $ = id => document.getElementById(id);
@@ -958,12 +1042,14 @@ async function garderEcran() {
 /* ---------- La voix du téléphone ---------- */
 /* La synthèse vocale du système, grave et lente. Sur iPhone elle ne parle qu'après un geste : on la réveille au lancement.
    Sans voix française sur l'appareil, le murmure seul. */
-let voix = null, voixReveillee = false;
+let voix = null, voixFemme = null, voixReveillee = false;
 function chercheVoix() {
   try {
     const liste = speechSynthesis.getVoices().filter(v => /^fr/i.test(v.lang));
     voix = liste.find(v => /thomas|audrey|am[ée]lie|google|hortense|paul/i.test(v.name)) || liste[0] || null;
-  } catch { voix = null; }
+    /* La narratrice de la démo, sans clé : une voix de femme si l'appareil en a une. */
+    voixFemme = liste.find(v => /audrey|am[ée]lie|hortense|marie|julie|female|femme/i.test(v.name)) || liste.find(v => v !== voix) || voix;
+  } catch { voix = null; voixFemme = null; }
 }
 function reveilleVoix() {
   if (!("speechSynthesis" in window)) return;
@@ -980,12 +1066,12 @@ function reveilleVoix() {
 /* Sans voix française repérée, on parle quand même en fr-FR : le système choisit. Les énoncés restent référencés jusqu'à leur fin,
    Safari peut sinon les ramasser avant de les avoir dits. */
 const enonces = [];
-function parleSysteme(texte) {
+function parleSysteme(texte, douce) {
   try {
     if (!("speechSynthesis" in window)) return false;
-    const u = new SpeechSynthesisUtterance(texte);
-    if (voix) u.voice = voix;
-    u.lang = voix ? voix.lang : "fr-FR"; u.pitch = .35; u.rate = .72; u.volume = 1;
+    const u = new SpeechSynthesisUtterance(texte), v = douce ? (voixFemme || voix) : voix;
+    if (v) u.voice = v;
+    u.lang = v ? v.lang : "fr-FR"; u.pitch = douce ? 1 : .35; u.rate = douce ? .88 : .72; u.volume = 1;
     u.onend = u.onerror = () => { const i = enonces.indexOf(u); if (i >= 0) enonces.splice(i, 1); };
     enonces.push(u);
     speechSynthesis.resume();
@@ -993,24 +1079,37 @@ function parleSysteme(texte) {
     return true;
   } catch { return false; }
 }
-function taisToi() { try { if ("speechSynthesis" in window) speechSynthesis.cancel(); } catch { /* rien à taire */ } }
+/* Les sources Gemini en cours (chaîne horrifique ou voix claire) : taisToi() les coupe aussi, pour la pause et pour « Première manche ». */
+const sourcesVoix = [];
+function retiens(s) { sourcesVoix.push(s); s.onended = () => { const i = sourcesVoix.indexOf(s); if (i >= 0) sourcesVoix.splice(i, 1); }; }
+function taisToi() {
+  try { if ("speechSynthesis" in window) speechSynthesis.cancel(); } catch { /* rien à taire */ }
+  const t = ac ? ac.currentTime : 0;
+  sourcesVoix.splice(0).forEach(s => { try { s.stop(t + .05); } catch { /* déjà arrêté */ } });
+}
 
 /* ---------- La voix Gemini ---------- */
 /* Avec une clé AI Studio collée sur l'écran d'accueil (gardée dans le téléphone, jamais dans ce fichier), les chuchotements sont dits par
    Gemini 3.8 Flash TTS, voix Enceladus (un souffle), demandés d'avance pour chaque joueur au lancement et gardés en mémoire.
    Sans clé, ou si l'appel échoue, la voix du système prend le relais. */
-const GEMINI = { modele: "gemini-3.8-flash-tts", texte: "gemini-2.5-flash", voix: "Algenib", style: "whispered, hoarse and breathy, very slow, with long pauses, menacing, like a ghost in an old horror film, French" };
+const GEMINI = {
+  modele: "gemini-3.8-flash-tts", texte: "gemini-2.5-flash",
+  voix: "Algenib", style: "whispered, hoarse and breathy, very slow, with long pauses, menacing, like a ghost in an old horror film, French",
+  /* La narratrice de la démo : une voix de femme, posée, un peu énigmatique. À choisir à l'oreille parmi les voix féminines (Despina, Achernar, Vindemiatrix, Gacrux). */
+  narratrice: "Despina", styleNarratrice: "a calm, mysterious and enigmatic woman, soft, unhurried and intimate, as if sharing a secret, slightly amused, French"
+};
 const cacheGemini = new Map();
 let cleGemini = "", panneGemini = 0;
 function lireCle() { const c = lire("tm-cle-gemini"); cleGemini = typeof c === "string" ? c.trim() : ""; $("cle").value = cleGemini; }
-async function geminiParle(texte) {
+async function geminiParle(texte, voixId = GEMINI.voix, style = GEMINI.style) {
   if (!cleGemini || !ac || panneGemini) return null;
-  if (cacheGemini.has(texte)) return cacheGemini.get(texte);
+  const cle = voixId + "\n" + texte;
+  if (cacheGemini.has(cle)) return cacheGemini.get(cle);
   const p = (async () => {
     const r = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
       method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": cleGemini },
       /* Forme validée le 31/10/2026 par un appel réel : 200, WAV RIFF 24 kHz, 91 jetons audio pour une phrase de cinq mots. */
-      body: JSON.stringify({ model: GEMINI.modele, input: [{ type: "user_input", content: [{ type: "text", text: texte, annotations: [{ type: "speech_metadata", style: GEMINI.style }] }] }], response_format: { type: "audio" }, generation_config: { speech_config: [{ voice: GEMINI.voix }] } })
+      body: JSON.stringify({ model: GEMINI.modele, input: [{ type: "user_input", content: [{ type: "text", text: texte, annotations: [{ type: "speech_metadata", style }] }] }], response_format: { type: "audio" }, generation_config: { speech_config: [{ voice: voixId }] } })
     });
     if (!r.ok) { const e = new Error("HTTP " + r.status); e.status = r.status; throw e; }
     const j = await r.json();
@@ -1020,8 +1119,8 @@ async function geminiParle(texte) {
     for (let i = 0; i < bin.length; i++) oct[i] = bin.charCodeAt(i);
     return await ac.decodeAudioData(oct.buffer);
   })();
-  cacheGemini.set(texte, p);
-  p.catch(e => { cacheGemini.delete(texte); if (e.status && e.status !== 429 && e.status < 500) panneGemini = e.status; });
+  cacheGemini.set(cle, p);
+  p.catch(e => { cacheGemini.delete(cle); if (e.status && e.status !== 429 && e.status < 500) panneGemini = e.status; });
   return p;
 }
 /* La voix rendue horrifique : trois couches du même énoncé (la voix ralentie d'un ton, une doublure grave et traînante, un souffle saturé),
@@ -1061,12 +1160,53 @@ function chaineHorrifique(ctx, buf, dest, quand) {
     }
     bout.connect(g); g.connect(entree);
     s.start(t + retard);
+    if (ctx === ac) retiens(s);
     fin = Math.max(fin, t + retard + buf.duration / vitesse);
   });
   lfo.start(t); lfo.stop(fin + 3);
   return fin + 2.5;
 }
 function joueTampon(buf) { chaineHorrifique(ac, buf, sortie); }
+/* La voix claire de la narratrice (démo) : le tampon tel quel, un peu de cave derrière, pas de chaîne horrifique : elle doit être comprise. */
+function joueClair(buf) {
+  const s = ac.createBufferSource(), g = ac.createGain(), conv = ac.createConvolver(), mouille = ac.createGain();
+  s.buffer = buf; g.gain.value = .95;
+  if (!reverbeCave) reverbeCave = reponseCave(ac);
+  conv.buffer = reverbeCave; mouille.gain.value = .14;
+  s.connect(g); g.connect(sortie); g.connect(conv); conv.connect(mouille); mouille.connect(sortie);
+  retiens(s);
+  s.start();
+}
+/* Ce que dit la narratrice : Gemini avec sa propre voix (trois secondes de grâce), sinon la voix du système, plus douce que celle du téléphone.
+   Si la démo a changé d'étape entre-temps, la phrase en retard n'est pas dite. */
+function narre(texte) {
+  taisToi();
+  if (cleGemini && ac && !panneGemini) {
+    Promise.race([geminiParle(texte, GEMINI.narratrice, GEMINI.styleNarratrice), new Promise(r => setTimeout(() => r(null), 3000))])
+      .then(buf => { if (D.texte !== texte) return; if (buf) joueClair(buf); else parleSysteme(texte, true); })
+      .catch(() => { if (D.texte === texte) parleSysteme(texte, true); });
+    return;
+  }
+  parleSysteme(texte, true);
+}
+/* L'histoire : les phrases demandées ensemble (quatre secondes de grâce), puis enchaînées dans la chaîne horrifique, chacune partant quand la
+   couche principale de la précédente se termine. Sans clé ou en retard, la voix du système dit le tout. */
+function raconte(phrases) {
+  taisToi(); murmure(.25);
+  const tout = phrases.join(" ");
+  if (cleGemini && ac && !panneGemini) {
+    Promise.race([Promise.all(phrases.map(t => geminiParle(t))), new Promise(r => setTimeout(() => r(null), 4000))])
+      .then(bufs => {
+        if ($("ecr-histoire").hidden) return;
+        if (!bufs || bufs.some(b => !b)) { parleSysteme(tout); return; }
+        let quand = ac.currentTime + .15;
+        bufs.forEach(b => { chaineHorrifique(ac, b, sortie, quand); quand += b.duration / .9 + .6; });
+      })
+      .catch(() => { if (!$("ecr-histoire").hidden) parleSysteme(tout); });
+    return;
+  }
+  parleSysteme(tout);
+}
 function chuchote(texte, fond = .22) {
   murmure(fond);
   if (cleGemini && ac && !panneGemini) {
@@ -1141,7 +1281,7 @@ function messageErreur(e) {
   return s ? "erreur " + s : "réseau ou décodage : " + (e && e.message);
 }
 function etatVoix() {
-  const n = $("note-voix"), tete = "Cassette v3.6 · ";
+  const n = $("note-voix"), tete = "Cassette v3.7 · ";
   if (cleGemini) {
     const fin = "clé …" + cleGemini.slice(-4) + " · voix Gemini : ";
     n.textContent = tete + fin + "vérification...";
@@ -1174,9 +1314,9 @@ function changeFond() {
 }
 
 /* ---------- La partie ---------- */
-const S = { noms: [], joueurs: [], but: 3, mode: "classique", musique: "cave", manche: 0, cur: 0, sens: 1, question: "", ecoule: 0, duree: 0, passes: 0, enCours: false, dernier: 0, minuteur: null, battement: null, verrouPasse: null, frayeurs: [], noirT: null, alerteT: null, bandeauT: null, appelT: null, tenueT: null, bandeT: null, neigeT: null, ombreT: null, regardT: null, osdFige: false, poussee: null, repliques: {}, ordre: null, tenir: false, visage: -1, secrets: {}, courte: false, malediction: null, debutTour: 0, faits: null, commentaire: null, premierMort: null, puni: "" };
-const ECRANS = ["ecr-depart", "ecr-secrets", "ecr-manche", "ecr-jeu", "ecr-coup", "ecr-carte", "ecr-fin"];
-function montre(id) { ECRANS.forEach(e => { $(e).hidden = e !== id; }); $(id).scrollTop = 0; document.body.classList.toggle("joue", id === "ecr-jeu" || id === "ecr-manche"); }
+const S = { noms: [], joueurs: [], but: 3, mode: "classique", musique: "cave", manche: 0, cur: 0, sens: 1, question: "", ecoule: 0, duree: 0, passes: 0, enCours: false, dernier: 0, minuteur: null, battement: null, verrouPasse: null, frayeurs: [], noirT: null, alerteT: null, bandeauT: null, appelT: null, tenueT: null, bandeT: null, neigeT: null, ombreT: null, regardT: null, osdFige: false, poussee: null, repliques: {}, ordre: null, tenir: false, visage: -1, secrets: {}, courte: false, malediction: null, debutTour: 0, faits: null, commentaire: null, premierMort: null, puni: "", histoires: {}, comptee: false, ecranAvant: "ecr-depart" };
+const ECRANS = ["ecr-depart", "ecr-secrets", "ecr-manche", "ecr-jeu", "ecr-coup", "ecr-carte", "ecr-fin", "ecr-histoire", "ecr-stats", "ecr-demo"];
+function montre(id) { ECRANS.forEach(e => { $(e).hidden = e !== id; }); $(id).scrollTop = 0; document.body.classList.toggle("joue", ["ecr-jeu", "ecr-manche", "ecr-histoire", "ecr-demo"].includes(id)); }
 function osd(gauche, droite) { $("osd-gauche").textContent = gauche; $("osd-temps").textContent = droite; }
 function danger(p) { document.documentElement.style.setProperty("--danger", p); }
 /* La cassette s'abîme : 0 à la première manche, 1 à partir de la septième. Tout ce qui fait peur en dépend. */
@@ -1184,7 +1324,50 @@ const usure = () => Math.min(1, (S.manche - 1) / 6);
 /* Le condamné : à une marque de la fin, le téléphone le veut. */
 const condamne = () => S.but > 1 && S.joueurs[S.cur].marques >= S.but - 1;
 
+/* ---------- Les profils ---------- */
+/* Un profil par prénom, gardé dans le téléphone de l'hôte (localStorage) : parties jouées, marques prises, gorgées annoncées par le téléphone,
+   temps tenu, condamnations, survies. Les marques et les gorgées se comptent au coup, le temps tenu à l'explosion, le reste à la fin de la partie :
+   une partie abandonnée garde ce qui a été bu. La démo n'y écrit jamais. */
+let PROFILS = {};
+const PROFIL_VIDE = () => ({ parties: 0, marques: 0, gorgees: 0, tenu: 0, condamnations: 0, survies: 0 });
+function lireProfils() {
+  const p = lire("tm-profils");
+  PROFILS = {};
+  if (p && typeof p === "object" && !Array.isArray(p)) Object.keys(p).slice(0, 60).forEach(nom => {
+    const v = p[nom] || {}, n = PROFIL_VIDE();
+    Object.keys(n).forEach(k => { n[k] = Math.max(0, Number(v[k]) || 0); });
+    PROFILS[nom] = n;
+  });
+}
+const ecrisProfils = () => ecrire("tm-profils", PROFILS);
+/* Le prénom tel que le profil l'écrit : « léa » retrouve « Léa ». */
+function nomProfil(nom) { return Object.keys(PROFILS).find(n => n.toLowerCase() === nom.toLowerCase()) || nom; }
+function profil(nom) { const n = nomProfil(nom); if (!PROFILS[n]) PROFILS[n] = PROFIL_VIDE(); return PROFILS[n]; }
+function assieds(nom) {
+  if (S.noms.length >= 12 || S.noms.some(n => n.toLowerCase() === nom.toLowerCase())) return;
+  S.noms.push(nom); ecrire("tm-noms", S.noms); dessineJoueurs();
+}
+function oublie(nom) {
+  delete PROFILS[nom]; ecrisProfils();
+  const i = S.noms.findIndex(n => n.toLowerCase() === nom.toLowerCase());
+  if (i >= 0) { S.noms.splice(i, 1); ecrire("tm-noms", S.noms); }
+  dessineJoueurs(); dessineStats();
+}
+function dessineProfils() {
+  const libres = Object.keys(PROFILS).filter(n => !S.noms.some(x => x.toLowerCase() === n.toLowerCase()))
+    .sort((a, b) => PROFILS[b].parties - PROFILS[a].parties || a.localeCompare(b));
+  $("profils-note").hidden = $("liste-profils").hidden = !libres.length;
+  $("liste-profils").replaceChildren(...libres.map(n => {
+    const li = document.createElement("li"), b = document.createElement("button");
+    b.type = "button"; b.textContent = n;
+    b.addEventListener("click", () => { clic(); assieds(n); });
+    li.append(b);
+    return li;
+  }));
+}
+
 function dessineJoueurs() {
+  dessineProfils();
   const ul = $("liste-joueurs");
   ul.replaceChildren(...S.noms.map((n, i) => {
     const li = document.createElement("li"), sp = document.createElement("span"), b = document.createElement("button");
@@ -1199,31 +1382,36 @@ function dessineJoueurs() {
   $("lancer").textContent = manque > 0 ? (manque === 1 ? "Encore 1 joueur" : manque === 3 ? "Ajoute au moins 3 joueurs" : "Encore " + manque + " joueurs") : "Lancer la cassette";
 }
 function ajouteNom() {
-  const v = $("nom").value.trim();
-  if (!v) return;
-  if (S.noms.length < 12 && !S.noms.some(n => n.toLowerCase() === v.toLowerCase())) { S.noms.push(v); ecrire("tm-noms", S.noms); dessineJoueurs(); }
+  const tape = $("nom").value.trim();
+  if (!tape) return;
+  const v = nomProfil(tape);
+  if (S.noms.length < 12 && !S.noms.some(n => n.toLowerCase() === v.toLowerCase())) { S.noms.push(v); profil(v); ecrisProfils(); ecrire("tm-noms", S.noms); dessineJoueurs(); }
   $("nom").value = "";
 }
-function dessineTableau(ul, tri) {
+/* Le tableau : prénom et marques ; avec `detail`, les gorgées annoncées par le téléphone (récap de manche, fin). */
+function dessineTableau(ul, tri, detail) {
   const liste = tri ? [...S.joueurs].sort((a, b) => b.marques - a.marques) : S.joueurs;
   ul.replaceChildren(...liste.map(j => {
     const li = document.createElement("li"), b = document.createElement("b"), i = document.createElement("i");
     b.textContent = j.nom; i.textContent = "†".repeat(j.marques);
     li.classList.toggle("mort", !!j.elimine);
     li.append(b, i);
+    if (detail && j.gorgees) { const s = document.createElement("small"); s.textContent = "· " + j.gorgees + " gorgée" + (j.gorgees > 1 ? "s" : ""); li.append(s); }
     return li;
   }));
 }
 
 function nouvellePartie() {
-  S.joueurs = S.noms.map(nom => ({ nom, marques: 0, elimine: false, tenu: 0 }));
+  S.joueurs = S.noms.map(nom => ({ nom, marques: 0, elimine: false, tenu: 0, gorgees: 0 }));
+  S.joueurs.forEach(j => profil(j.nom)); ecrisProfils();
   prechargeFonds();
   S.but = Number(document.querySelector('input[name="duree"]:checked').value);
   S.mode = (document.querySelector('input[name="mode"]:checked') || {}).value || "classique";
   ecrire("tm-mode", S.mode);
   S.musique = (document.querySelector('input[name="musique"]:checked') || {}).value || "cave";
   ecrire("tm-musique", S.musique);
-  S.manche = 0; S.sens = 1; S.courte = false; S.malediction = null; S.premierMort = null; S.puni = ""; secretIndex = 0;
+  prechargeHistoire();
+  S.manche = 0; S.sens = 1; S.courte = false; S.malediction = null; S.premierMort = null; S.puni = ""; S.comptee = false; secretIndex = 0;
   S.cur = Math.floor(Math.random() * S.joueurs.length);
   document.title = "Le Téléphone Maudit";
   ouvreSecrets();
@@ -1252,7 +1440,20 @@ function gardeSecret(rien) {
   secretIndex++;
   ouvreSecrets();
 }
-function demarreCassette() { tireRepliques(); prechargeVoix(); ouvreManche(); }
+function demarreCassette() { tireRepliques(); prechargeVoix(); if (HISTOIRES[S.musique] && !S.histoires[S.musique]) ouvreHistoire(); else ouvreManche(); }
+/* ---------- L'histoire de la cassette ---------- */
+/* Avant la première manche, le téléphone raconte d'où il vient : trois phrases selon la musique choisie, dites par sa voix, une fois par musique
+   et par soirée. Les phrases sont demandées à Gemini dès « Lancer », les secrets laissent le temps. « Première manche » coupe la voix et lance. */
+function prechargeHistoire() { const h = HISTOIRES[S.musique]; if (h && !S.histoires[S.musique] && cleGemini && ac && !panneGemini) h.forEach(t => geminiParle(t)); }
+function ouvreHistoire() {
+  const h = HISTOIRES[S.musique];
+  S.histoires[S.musique] = true;
+  danger(.15);
+  osd("REC · CASSETTE", "▶ SP");
+  $("histoire-texte").textContent = h.join(" ");
+  montre("ecr-histoire");
+  raconte(h);
+}
 function ouvreManche() {
   S.manche++; S.sens = 1;
   S.question = prochaineQuestion();
@@ -1263,7 +1464,9 @@ function ouvreManche() {
   osd("REC · MANCHE " + S.manche, "▶ SP");
   $("manche-question").textContent = S.question;
   $("manche-qui").textContent = S.joueurs[S.cur].nom + (S.courte ? " commence, désigné par la table. La mèche sera courte." : condamne() ? " commence. Il te veut." : " commence. Prépare ta réponse.");
-  dessineTableau($("manche-tableau"));
+  /* Le récap : dès la deuxième manche, marques et gorgées de chacun, sous la question. */
+  $("manche-recap").hidden = S.manche < 2;
+  dessineTableau($("manche-tableau"), false, true);
   montre("ecr-manche");
 }
 /* Le prochain porteur dans un sens : en Survivant, les éliminés sont sautés. */
@@ -1601,6 +1804,7 @@ function explose() {
   const j = S.joueurs[S.cur];
   j.tenu += S.ecoule - S.debutTour;
   j.marques++;
+  S.joueurs.forEach(x => { profil(x.nom).tenu += Math.round(x.tenu); });
   S.malediction = null;
   /* Le commentaire de la manche part tout de suite : il a le noir, l'éclair et le visage pour arriver avant l'écran du coup. */
   S.faits = faitsDeManche(j);
@@ -1625,6 +1829,8 @@ function afficheCoup(j) {
   danger(.55);
   osd("REC · MANCHE " + S.manche, "■ STOP");
   const n = Math.min(j.marques + 1, 4), fini = j.marques >= S.but, survivant = S.mode === "survivant";
+  j.gorgees += n;
+  const prof = profil(j.nom); prof.marques++; prof.gorgees += n; ecrisProfils();
   /* En Survivant, le compte atteint sort le joueur de la table ; la partie finit quand il n'en reste qu'un. */
   if (fini && survivant) { j.elimine = true; if (!S.premierMort) S.premierMort = j; }
   const vivants = S.joueurs.filter(x => !x.elimine), finPartie = fini && (!survivant || vivants.length <= 1);
@@ -1692,6 +1898,14 @@ function ouvreFin() {
   const survivant = S.mode === "survivant", vivants = S.joueurs.filter(x => !x.elimine);
   const j = survivant ? (vivants[0] || S.joueurs[S.cur]) : S.joueurs[S.cur], puni = survivant ? (S.premierMort || j) : j;
   S.puni = puni.nom;
+  /* Les profils, une fois par partie : une partie à chacun, une condamnation au puni, une survie au dernier vivant. */
+  if (!S.comptee) {
+    S.comptee = true;
+    S.joueurs.forEach(x => { profil(x.nom).parties++; });
+    profil(puni.nom).condamnations++;
+    if (survivant) profil(j.nom).survies++;
+    ecrisProfils();
+  }
   cloche();
   danger(1);
   osd("FIN", "■ STOP");
@@ -1706,9 +1920,152 @@ function ouvreFin() {
     li.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choisitChatiment(li, t); } });
     return li;
   }));
-  dessineTableau($("fin-tableau"), true);
+  dessineTableau($("fin-tableau"), true, true);
   montre("ecr-fin");
   chuchote(tire(survivant ? SURVIES : VERDICTS).replaceAll("{nom}", j.nom), .5);
+}
+/* ---------- Les stats ---------- */
+/* Une ligne par profil, le plus condamné en tête et en rouge. « Oublier » demande une seconde touche dans les trois secondes. */
+function dureeLisible(ms) { const s = Math.round(ms / 1000); return s >= 60 ? Math.floor(s / 60) + " min " + String(s % 60).padStart(2, "0") + " s" : s + " s"; }
+function dessineStats() {
+  const noms = Object.keys(PROFILS).sort((a, b) => PROFILS[b].condamnations - PROFILS[a].condamnations || PROFILS[b].marques - PROFILS[a].marques || a.localeCompare(b));
+  const max = noms.length ? PROFILS[noms[0]].condamnations : 0, pires = noms.filter(n => max && PROFILS[n].condamnations === max);
+  $("stats-titre").textContent = !noms.length ? "Aucun profil pour l'instant. Ajoute des joueurs sur l'accueil : le téléphone retiendra tout."
+    : !max ? "Personne n'a encore été condamné. Ça ne durera pas."
+    : (pires.length > 1 ? "Les plus condamnés : " + pires.slice(0, -1).join(", ") + " et " + pires[pires.length - 1] : "Le plus condamné : " + pires[0]) + ", " + max + " fois.";
+  const pluriel = (k, mot) => k + " " + mot + (k > 1 ? "s" : "");
+  $("stats-liste").replaceChildren(...noms.map(n => {
+    const p = PROFILS[n], li = document.createElement("li"), b = document.createElement("b"), s = document.createElement("small"), o = document.createElement("button");
+    b.textContent = n;
+    li.classList.toggle("pire", pires.includes(n));
+    s.textContent = [pluriel(p.parties, "partie"), pluriel(p.marques, "marque"), pluriel(p.gorgees, "gorgée"), "tenu " + dureeLisible(p.tenu), pluriel(p.condamnations, "condamnation")]
+      .concat(p.survies ? [pluriel(p.survies, "survie")] : []).join(" · ");
+    o.type = "button"; o.className = "discret"; o.textContent = "Oublier";
+    o.addEventListener("click", () => {
+      if (o.dataset.sur) { clic(); oublie(n); return; }
+      o.dataset.sur = "1"; o.textContent = "Sûr ?";
+      setTimeout(() => { delete o.dataset.sur; o.textContent = "Oublier"; }, 3000);
+    });
+    li.append(b, o, s);
+    return li;
+  }));
+}
+function ouvreStats(depuis) { S.ecranAvant = depuis; dessineStats(); danger(0); osd("REC · STATS", "▶ SP"); $("pause-btn").hidden = true; montre("ecr-stats"); }
+function fermeStats() {
+  clic();
+  if (S.ecranAvant === "ecr-fin") { danger(1); osd("FIN", "■ STOP"); } else { danger(0); osd("REC", "▶ SP"); }
+  montre(S.ecranAvant);
+}
+
+/* ---------- La démo ---------- */
+/* La partie guidée : la narratrice explique en sept étapes ; l'étape « mèche » est une vraie mèche de seize secondes, cœur et musique compris,
+   à passer entre « Toi » et « Ton voisin », à tenir enfoncé passé 60 %, et qui finit par hurler avant de passer seule à l'étape suivante.
+   Rien n'est écrit dans les profils : la démo ne compte pas. */
+const D = { etape: -1, texte: "", duree: 16000, ecoule: 0, dernier: 0, minuteur: null, battement: null, verrou: null, tenueT: null, tenir: false, passes: 0, porteur: 0, enCours: false, dit: {} };
+const DEMO_PORTEURS = ["Toi", "Ton voisin"];
+function ouvreDemo() {
+  reveilleSon(); reveilleVoix(); finApercu(); clic();
+  D.dit = {};
+  danger(0); osd("REC · DÉMO", "▶ SP"); $("pause-btn").hidden = true;
+  montre("ecr-demo");
+  etapeDemo(0);
+  /* Les autres étapes sont demandées à Gemini d'avance, la première passe devant. */
+  if (cleGemini && ac && !panneGemini) setTimeout(() => DEMO.slice(1).forEach(e => geminiParle(e.texte, GEMINI.narratrice, GEMINI.styleNarratrice)), 800);
+}
+function etapeDemo(i) {
+  arreteDemoMeche();
+  D.etape = i;
+  const e = DEMO[i];
+  D.texte = e.texte;
+  $("demo-etiquette").textContent = "Comprendre le jeu · " + (i + 1) + " / " + DEMO.length;
+  $("demo-texte").textContent = e.texte;
+  $("demo-nom").hidden = $("demo-question").hidden = $("demo-passer").hidden = !e.meche;
+  $("demo-suite").hidden = !!e.meche;
+  $("demo-suite").textContent = e.fin ? "J'ai compris" : "Suite";
+  narre(e.texte);
+  if (e.meche) demarreDemoMeche();
+}
+function demarreDemoMeche() {
+  D.ecoule = 0; D.passes = 0; D.porteur = 0; D.tenir = false; D.enCours = true; D.dernier = performance.now();
+  $("demo-question").textContent = "Cite un film d'horreur.";
+  dessineDemoTour();
+  demarreAmbiance(S.musique || "cave");
+  clearInterval(D.minuteur); D.minuteur = setInterval(demoTic, 100);
+  clearTimeout(D.battement); demoBattre();
+}
+function dessineDemoTour() {
+  $("demo-nom").textContent = DEMO_PORTEURS[D.porteur];
+  const b = $("demo-passer");
+  b.disabled = true; b.classList.remove("tient"); b.textContent = "RÉPONDS D'ABORD...";
+  clearTimeout(D.verrou);
+  D.verrou = setTimeout(() => { b.disabled = false; majDemoBouton(); }, 1100);
+}
+function majDemoBouton() {
+  const b = $("demo-passer");
+  if (b.disabled) return;
+  b.textContent = D.porteur === 0 ? (D.tenir ? "Tiens-le pour ton voisin" : "Passer à ton voisin") : (D.tenir ? "Tiens-le pour le reprendre" : "Reprends-le");
+}
+function demoTic() {
+  if (!D.enCours) return;
+  const now = performance.now();
+  D.ecoule += now - D.dernier; D.dernier = now;
+  const p = Math.min(D.ecoule / D.duree, 1);
+  danger(p.toFixed(3)); regleAmbiance(p);
+  $("osd-temps").textContent = temps(D.ecoule);
+  if (p >= 1) { demoExplose(); return; }
+  const t = p > .6;
+  if (t !== D.tenir) { D.tenir = t; majDemoBouton(); if (t && !D.dit.tenir) { D.dit.tenir = true; narre(DEMO_TENIR); } }
+}
+function demoBattre() {
+  if (!D.enCours) return;
+  const p = Math.min(D.ecoule / D.duree, 1);
+  coeur(p);
+  document.documentElement.style.setProperty("--pouls", 1);
+  setTimeout(() => document.documentElement.style.setProperty("--pouls", 0), 130);
+  D.battement = setTimeout(demoBattre, 60000 / (56 + 124 * Math.pow(p, 1.4)));
+}
+function demoPasse() {
+  if (!D.enCours || $("demo-passer").disabled) return;
+  clic(); D.passes++; D.porteur = 1 - D.porteur;
+  dessineDemoTour();
+  if (D.passes === 1) narre(DEMO_PASSE);
+}
+function demoPoseDoigt(e) {
+  const b = $("demo-passer");
+  if (!D.enCours || b.disabled || e.button > 0) return;
+  if (!D.tenir) { demoPasse(); return; }
+  b.classList.add("tient");
+  clearTimeout(D.tenueT);
+  D.tenueT = setTimeout(() => { D.tenueT = null; b.classList.remove("tient"); demoPasse(); }, 450);
+}
+function demoLeveDoigt() {
+  if (!D.tenueT) return;
+  clearTimeout(D.tenueT); D.tenueT = null;
+  const b = $("demo-passer");
+  b.classList.remove("tient"); b.textContent = "ENCORE...";
+  setTimeout(majDemoBouton, 500);
+}
+function demoExplose() {
+  arreteDemoMeche(true);
+  hurlement(.9);
+  try { navigator.vibrate && navigator.vibrate([200, 60, 300]); } catch { /* absent sur iPhone */ }
+  montreVisage(false);
+  setTimeout(() => { cacheVisage(); if (D.etape === 2 && !$("ecr-demo").hidden) etapeDemo(3); }, 700);
+}
+function arreteDemoMeche(brutal) {
+  D.enCours = false;
+  clearInterval(D.minuteur); clearTimeout(D.battement); clearTimeout(D.tenueT); clearTimeout(D.verrou); D.tenueT = null;
+  $("demo-passer").classList.remove("tient");
+  arreteAmbiance(brutal);
+  danger(0);
+  $("osd-temps").textContent = "▶ SP";
+}
+function quitteDemo() {
+  arreteDemoMeche();
+  taisToi(); cacheVisage();
+  D.etape = -1; D.texte = "";
+  osd("REC", "▶ SP");
+  montre("ecr-depart");
 }
 function choisitChatiment(li, t) {
   [...$("fin-chatiments").children].forEach(x => { x.classList.toggle("choisi", x === li); x.classList.toggle("ecarte", x !== li); });
@@ -1761,9 +2118,23 @@ $("changer").addEventListener("click", retourDepart);
 $("pause-btn").addEventListener("click", () => { suspendsMeche(); $("couche-pause").hidden = false; });
 $("reprendre").addEventListener("click", () => { reveilleSon(); $("couche-pause").hidden = true; reprendMeche(); });
 $("arreter").addEventListener("click", retourDepart);
+$("ouvrir-demo").addEventListener("click", ouvreDemo);
+$("ouvrir-stats").addEventListener("click", () => { reveilleSon(); clic(); ouvreStats("ecr-depart"); });
+$("fin-stats").addEventListener("click", () => { clic(); ouvreStats("ecr-fin"); });
+$("stats-retour").addEventListener("click", fermeStats);
+$("histoire-suite").addEventListener("click", () => { taisToi(); clic(); ouvreManche(); });
+$("demo-suite").addEventListener("click", () => { clic(); if (DEMO[D.etape] && DEMO[D.etape].fin) quitteDemo(); else etapeDemo(D.etape + 1); });
+$("demo-quitter").addEventListener("click", quitteDemo);
+$("demo-passer").addEventListener("pointerdown", demoPoseDoigt);
+["pointerup", "pointercancel", "pointerleave"].forEach(ev => $("demo-passer").addEventListener(ev, demoLeveDoigt));
+$("demo-passer").addEventListener("click", e => { if (e.detail === 0) demoPasse(); });
+$("demo-passer").addEventListener("contextmenu", e => e.preventDefault());
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && S.enCours) { suspendsMeche(); $("couche-pause").hidden = false; }
   if (!document.hidden && S.enCours) garderEcran();
+  /* La mèche de la démo ne brûle pas écran éteint : elle repart de zéro au retour. */
+  if (document.hidden && D.enCours) arreteDemoMeche();
+  else if (!document.hidden && D.etape === 2 && !D.enCours && !$("ecr-demo").hidden) demarreDemoMeche();
 });
 const memoire = lire("tm-noms");
 if (Array.isArray(memoire)) S.noms = memoire.filter(n => typeof n === "string").slice(0, 12);
@@ -1774,6 +2145,9 @@ const modeMemoire = lire("tm-mode");
 const radioMode = typeof modeMemoire === "string" && document.querySelector('input[name="mode"][value="' + modeMemoire + '"]');
 if (radioMode) { radioMode.checked = true; $("note-mode").hidden = modeMemoire !== "survivant"; }
 lireCle();
+lireProfils();
+S.noms.forEach(n => profil(n));
+if (S.noms.length) ecrisProfils();
 dessineJoueurs();
 </script>
 
