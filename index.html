@@ -192,8 +192,6 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
 .chatiments li.ecarte { opacity: .35; }
 .chatiments li.choisi { color: var(--phosphore); }
 .chatiments li.choisi::before { color: var(--phosphore); }
-/* Un secret est plus long qu'un murmure : la taille baisse pour qu'il tienne en deux ou trois lignes. */
-#noir p.long { font-size: clamp(30px, 7.6vw, 48px); }
 /* Les profils : les prénoms déjà venus, en pointillé, à toucher pour les asseoir à la table. */
 .profils { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .profils button { min-height: 40px; padding: 4px 12px; border: 1px dashed var(--os-sourd); border-radius: 4px; background: transparent; color: var(--os); font: inherit; font-size: 17px; cursor: pointer; overflow-wrap: anywhere; }
@@ -281,7 +279,6 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
       <li>S'il hurle dans tes mains, tu prends une marque et tu bois. Trop de marques, et il te garde.</li>
       <li>Tout gage se remplace par les gorgées annoncées. Qui ne boit pas d'alcool boit de l'eau. Lancer le téléphone : 3 gorgées.</li>
       <li>Il ment parfois. Il s'éteint parfois. Il sonne parfois. Vers la fin, il faut le tenir enfoncé pour le passer. Ne le lâche jamais.</li>
-      <li>Avant la première manche, chacun lui confie en cachette une peur ou un lieu d'enfance. Il s'en servira.</li>
     </ul>
     <div class="deux">
       <button class="discret" id="ouvrir-demo" type="button">Comprendre le jeu</button>
@@ -360,24 +357,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
           <button class="discret" id="ecouter-narratrice" type="button">Écouter</button>
         </div>
       </div>
-      <p class="note" id="note-voix">Cassette v3.12</p>
+      <p class="note" id="note-voix">Cassette v3.13</p>
     </div>
     <div class="bas"><button class="gros" id="lancer" type="button" disabled>Ajoute au moins 3 joueurs</button></div>
-  </section>
-
-  <section class="ecr" id="ecr-secrets" hidden>
-    <div class="milieu">
-      <p class="etiquette">Le téléphone veut un secret</p>
-      <h2 id="secret-nom"></h2>
-      <p class="corps">Prends le téléphone sans que personne ne regarde. Écris une peur, ou un lieu de ton enfance. Il s'en souviendra.</p>
-      <form class="ajout" id="form-secret">
-        <input id="secret" type="text" maxlength="40" placeholder="la cave de mes grands-parents" autocomplete="off" autocapitalize="off" enterkeyhint="done" aria-label="Ton secret">
-      </form>
-    </div>
-    <div class="bas">
-      <button class="gros" id="secret-garder" type="button">Garder</button>
-      <button class="discret" id="secret-rien" type="button">Rien à lui dire</button>
-    </div>
   </section>
 
   <section class="ecr" id="ecr-manche" hidden>
@@ -504,27 +486,44 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
 
 <script>
 /* ---------- Le contenu ---------- */
-/* Des catégories larges, à la Tic Tac Boum : dix réponses évidentes au moins, qu'on sort sans réfléchir. Pas de question d'esprit. */
+/* Des catégories larges, à la Tic Tac Boum : quinze réponses évidentes au moins, qu'on sort sans réfléchir. Pas de question d'esprit.
+   Tout est sur le thème d'Halloween depuis le 31/10 (liste v1, context/import/jeux/2026-10-31_telephone-maudit_questions-halloween_v1.md).
+   Trois niveaux : 1 la table entière répond, 2 culture populaire d'adulte, 3 cinéphiles et curieux (peu, elles font sécher). */
 const QUESTIONS = [
-  "Cite un film d'horreur.", "Cite un film avec des zombies, des vampires ou des fantômes.",
-  "Cite un tueur ou un méchant de cinéma.", "Cite un monstre ou une créature de légende.",
-  "Cite un méchant de dessin animé.", "Cite une série qui fait peur.", "Cite un jeu vidéo qui fait peur.",
-  "Cite un personnage de Harry Potter.", "Cite un déguisement d'Halloween.", "Cite une décoration d'Halloween.",
-  "Cite un bonbon ou une sucrerie.", "Cite une chose qu'on fait à Halloween.", "Cite une créature qui sort la nuit.",
-  "Cite un animal qu'on ne veut pas croiser la nuit.", "Cite un animal qui pique, qui mord ou qui rampe.",
-  "Cite un insecte ou une bestiole.", "Cite une phobie, une chose dont les gens ont peur.",
-  "Cite un endroit qui fait peur la nuit.", "Cite une chose qu'on trouve dans un cimetière.",
+  /* Niveau 1 */
+  "Cite un déguisement d'Halloween.", "Cite une décoration d'Halloween.", "Cite une chose qu'on fait à Halloween.",
+  "Cite un bonbon ou une sucrerie.", "Cite une marque de bonbons ou de chocolat.",
+  "Cite une chose qu'une sorcière possède ou utilise.", "Cite une chose qu'une sorcière met dans son chaudron.",
+  "Cite une chose que fait un fantôme.", "Cite une chose que fait un vampire, ou qui le trahit.",
+  "Cite une chose qui éloigne un vampire ou un démon.", "Cite un monstre ou une créature de légende.",
+  "Cite un animal qu'on associe à Halloween ou à la nuit.", "Cite un animal qu'on ne veut pas croiser la nuit.",
+  "Cite un animal qui pique, qui mord ou qui rampe.", "Cite un insecte ou une bestiole.", "Cite un os du squelette.",
+  "Cite une chose qu'on trouve dans un cimetière.", "Cite une chose qu'on trouve dans une maison hantée.",
   "Cite une chose qu'on trouve dans une cave ou un grenier.", "Cite une chose qu'on ne veut pas trouver sous son lit.",
-  "Cite un bruit qui fait peur la nuit.", "Cite une arme de film d'horreur.", "Cite une façon de mourir dans un film d'horreur.",
-  "Cite une chose qui éloigne un vampire ou un démon.", "Cite un pouvoir de monstre ou de sorcière.",
-  "Cite une chose qu'une sorcière met dans son chaudron.", "Cite une superstition ou un porte-malheur.",
-  "Cite un métier qu'on exerce la nuit.", "Cite une partie du corps.", "Cite un plat ou un aliment dégoûtant.",
-  "Cite une chose qui sent mauvais.",
-  "Cite un alcool.", "Cite un cocktail.", "Cite une marque de bière.", "Cite une marque de soda ou de boisson.",
-  "Cite un jeu à boire.", "Cite une chose qu'on regrette le lendemain d'une soirée.", "Cite une mauvaise idée quand on a bu.",
-  "Cite une excuse pour quitter une soirée.", "Cite une chose qu'on trouve dans un frigo abandonné.",
-  "Cite une application qu'on a sur son téléphone.", "Cite un prénom de grand-père ou de grand-mère.",
-  "Cite un pays.", "Cite une ville de France."
+  "Cite un bruit qui fait peur la nuit.", "Cite un endroit qui fait peur la nuit.", "Cite une chose qui brille ou qui bouge dans le noir.",
+  "Cite une chose qui fait peur aux enfants.", "Cite une chose qu'on fait quand on a peur.", "Cite une façon de faire peur à quelqu'un.",
+  "Cite une cachette dans une maison.", "Cite un objet de la maison qui peut servir d'arme.",
+  "Cite une mauvaise idée quand on est seul dans une maison la nuit.", "Cite une excuse pour ne pas descendre à la cave.",
+  "Cite un cauchemar classique.", "Cite une chose qui porte malheur, ou une superstition.",
+  "Cite une chose qui porte bonheur ou qui protège du mal.", "Cite une phobie, une chose dont les gens ont peur.",
+  "Cite un plat ou un aliment dégoûtant.", "Cite une chose qui sent mauvais.",
+  /* Niveau 2 */
+  "Cite un film d'horreur.", "Cite un film avec des zombies, des vampires ou des fantômes.",
+  "Cite un film ou un dessin animé d'Halloween pour les enfants.", "Cite un tueur ou un méchant de cinéma.",
+  "Cite un méchant de dessin animé.", "Cite une série qui fait peur.", "Cite un jeu vidéo qui fait peur.",
+  "Cite un personnage de Harry Potter.", "Cite une sorcière ou un sorcier célèbre.",
+  "Cite une arme de film d'horreur.", "Cite une façon de mourir dans un film d'horreur.",
+  "Cite une erreur qu'on fait toujours dans un film d'horreur.", "Cite un lieu classique de film d'horreur.",
+  "Cite un objet qui peut être hanté ou possédé.", "Cite une formule magique ou un sort.", "Cite un pouvoir de monstre ou de sorcière.",
+  "Cite une chanson ou un groupe qu'on met à une soirée d'Halloween.", "Cite une attraction ou une activité à sensations qui fait peur.",
+  "Cite un métier qui côtoie les morts ou la nuit.", "Cite une chose qu'on trouve dans le laboratoire d'un savant fou.",
+  "Cite une créature de la mythologie qui fait peur.", "Cite un cocktail ou une boisson rouge comme le sang.",
+  "Cite une chose qu'on regrette le lendemain d'une soirée d'Halloween.", "Cite une créature qui sort la nuit.",
+  /* Niveau 3 */
+  "Cite un fantôme ou une légende urbaine.", "Cite une créature des légendes de France ou de Bretagne.",
+  "Cite un roman ou un film tiré de Stephen King.", "Cite un auteur ou un livre qui fait peur.", "Cite un film de Tim Burton.",
+  "Cite un personnage de Stranger Things.", "Cite un vampire, un zombie ou un loup-garou célèbre.",
+  "Cite un démon, un diable ou une figure des enfers.", "Cite une tradition d'Halloween ou d'une fête des morts, ici ou ailleurs."
 ];
 
 const CARTES = [
@@ -637,7 +636,6 @@ const COMMENTAIRES = [
 const COMMENTAIRES_LENT = [
   "{lent} m'a gardé trop longtemps. Je m'en souviendrai.", "{lent} avait la réponse. {lent} a préféré regarder {perdant} brûler.", "{lent}... tu croyais que je ne comptais pas ?"
 ];
-const COMMENTAIRES_SECRET = ["{perdant}... je sais : {secret}.", "{secret}... {perdant} croyait l'avoir oublié."];
 /* Le verdict de la fin, dit par la voix : au perdant en Classique, au dernier vivant en Survivant. */
 const VERDICTS = ["{nom}... la cassette est finie. Tu m'appartiens.", "{nom}... je t'avais dit que je te voulais.", "{nom}... tu es à moi, maintenant.", "{nom}... ne rembobine pas. Ça ne changera rien."];
 const SURVIES = ["{nom}... tu as survécu. Pour cette fois.", "{nom}... les autres sont à moi. Toi, je te garde pour plus tard.", "{nom}... dernier debout. Dernier à tomber."];
@@ -661,7 +659,7 @@ const DEMO = [
   { texte: "Tu l'as senti ? Il a hurlé dans tes mains. Dans la vraie partie, c'est une marque, et tu bois. Trop de marques, et il te garde." },
   { texte: "Il ment. Il s'éteint, il sonne, il chuchote des prénoms, il dit à qui le donner. Vers la fin, il faut le tenir enfoncé pour le passer. Ne le lâche jamais." },
   { texte: "Entre deux manches, une carte. Un vote, un gage, un duel, une malédiction. Parfois une grâce. Parfois une accusation, et la table pointe du doigt." },
-  { texte: "À la fin, celui qu'il garde subit le châtiment choisi par la table. Avant de commencer, chacun lui confiera un secret, en cachette. Il s'en servira. Maintenant, va. Et ne te retourne pas.", fin: true }
+  { texte: "À la fin, celui qu'il garde subit le châtiment choisi par la table. Maintenant, va. Et ne te retourne pas.", fin: true }
 ];
 const DEMO_PASSE = "Bien. Il circule. Et pendant qu'il circule, la mèche brûle.";
 const DEMO_TENIR = "Tiens-le enfoncé, maintenant. Lâcher trop tôt ne compte pas.";
@@ -1476,12 +1474,11 @@ function chuchote(texte, fond = .22) {
   return parleSysteme(texte);
 }
 /* Les répliques de la partie, tirées une fois par joueur dès « Lancer » (un chuchot, un ordre, un appel : le quota ne permet pas plus), et
-   demandées à Gemini d'avance en préchargement, joueur par joueur dans l'ordre de la table. Les secrets, connus après leurs écrans, viennent
-   ensuite (ajouteSecrets). La file cadence les envois. */
+   demandées à Gemini d'avance en préchargement, joueur par joueur dans l'ordre de la table. La file cadence les envois. */
 function tireRepliques() {
   S.repliques = {};
   S.joueurs.forEach(j => {
-    S.repliques[j.nom] = { chuchots: melange(CHUCHOTS).slice(0, 1).map(t => t.replaceAll("{nom}", j.nom)), telephone: [tire(AU_TELEPHONE).replaceAll("{nom}", j.nom)], ordre: "donne-le à " + j.nom, secret: null };
+    S.repliques[j.nom] = { chuchots: melange(CHUCHOTS).slice(0, 1).map(t => t.replaceAll("{nom}", j.nom)), telephone: [tire(AU_TELEPHONE).replaceAll("{nom}", j.nom)], ordre: "donne-le à " + j.nom };
   });
 }
 function prechargeTexte(t) { geminiParle(t, GEMINI.voix, GEMINI.style, false).catch(() => { /* la réplique sera redemandée au moment de la dire */ }); }
@@ -1489,14 +1486,7 @@ function prechargeVoix() {
   if (!voixActive()) return;
   S.joueurs.forEach(j => { const r = S.repliques[j.nom]; [...r.chuchots, r.ordre, ...r.telephone].forEach(prechargeTexte); });
 }
-function ajouteSecrets() {
-  S.joueurs.forEach(j => {
-    if (!S.secrets[j.nom]) return;
-    S.repliques[j.nom].secret = j.nom + "... " + S.secrets[j.nom] + "...";
-    if (voixActive()) prechargeTexte(S.repliques[j.nom].secret);
-  });
-}
-/* Le téléphone commente la manche : une phrase écrite par Gemini sur les faits (qui a brûlé, qui a traîné, le secret du perdant), dite par la voix.
+/* Le téléphone commente la manche : une phrase écrite par Gemini sur les faits (qui a brûlé, qui a traîné), dite par la voix.
    Sans clé, en panne ou trop lent (2,5 s), un gabarit local prend la place : la table ne voit jamais la différence d'attente. */
 let panneTexte = 0;
 async function geminiEcrit(prompt) {
@@ -1520,7 +1510,6 @@ function promptCommentaire(f) {
     "Pris par la mèche : " + f.perdant + " (" + f.marques + " marque" + (f.marques > 1 ? "s" : "") + " sur " + f.but + (f.elimine ? ", éliminé de la table" : "") + ")."
   ];
   if (f.lent) l.push("Celui qui l'a gardé le plus longtemps : " + f.lent + ", " + f.lentSecondes + " secondes.");
-  if (f.secret) l.push("Secret confié par " + f.perdant + " au début de la soirée : « " + f.secret + " ».");
   if (f.morts.length) l.push("Déjà sortis de la table : " + f.morts.join(", ") + ".");
   return l.join("\n");
 }
@@ -1529,15 +1518,15 @@ async function commenteGemini(f) {
   try { return nettoie(await geminiEcrit(promptCommentaire(f))) || null; } catch { return null; }
 }
 function commentaireLocal(f) {
-  const choix = [...COMMENTAIRES, ...(f.lent ? COMMENTAIRES_LENT : []), ...(f.secret ? COMMENTAIRES_SECRET : [])];
-  return tire(choix).replaceAll("{perdant}", f.perdant).replaceAll("{lent}", f.lent || f.perdant).replaceAll("{passes}", String(f.passes)).replaceAll("{secret}", f.secret || "");
+  const choix = [...COMMENTAIRES, ...(f.lent ? COMMENTAIRES_LENT : [])];
+  return tire(choix).replaceAll("{perdant}", f.perdant).replaceAll("{lent}", f.lent || f.perdant).replaceAll("{passes}", String(f.passes));
 }
 function faitsDeManche(perdant) {
   const lent = [...S.joueurs].sort((a, b) => b.tenu - a.tenu)[0];
   return {
     perdant: perdant.nom, marques: perdant.marques, but: S.but, manche: S.manche, passes: S.passes, duree: Math.round(S.duree / 1000),
     lent: lent && lent !== perdant && lent.tenu > 0 ? lent.nom : null, lentSecondes: lent ? Math.round(lent.tenu / 1000) : 0,
-    elimine: S.mode === "survivant" && perdant.marques >= S.but, morts: S.joueurs.filter(x => x.elimine && x !== perdant).map(x => x.nom), secret: S.secrets[perdant.nom] || null
+    elimine: S.mode === "survivant" && perdant.marques >= S.but, morts: S.joueurs.filter(x => x.elimine && x !== perdant).map(x => x.nom)
   };
 }
 function messageErreur(e) {
@@ -1550,7 +1539,7 @@ function messageErreur(e) {
   return s ? "erreur " + s : "réseau ou décodage : " + (e && e.message);
 }
 function etatVoix() {
-  const n = $("note-voix"), tete = "Cassette v3.12 · ";
+  const n = $("note-voix"), tete = "Cassette v3.13 · ";
   if (cleGemini || cleCloud) {
     const fin = "clé …" + [cleGemini, cleCloud].filter(Boolean).map(c => c.slice(-4)).join(" + …") + " · voix Gemini : ";
     n.textContent = tete + fin + "vérification...";
@@ -1589,8 +1578,8 @@ function changeFond() {
 }
 
 /* ---------- La partie ---------- */
-const S = { noms: [], joueurs: [], but: 3, mode: "classique", musique: "cave", echo: "sec", manche: 0, cur: 0, sens: 1, question: "", ecoule: 0, duree: 0, passes: 0, enCours: false, dernier: 0, minuteur: null, battement: null, verrouPasse: null, frayeurs: [], noirT: null, alerteT: null, bandeauT: null, appelT: null, tenueT: null, bandeT: null, neigeT: null, ombreT: null, regardT: null, osdFige: false, poussee: null, repliques: {}, ordre: null, tenir: false, visage: -1, secrets: {}, courte: false, malediction: null, debutTour: 0, faits: null, commentaire: null, premierMort: null, puni: "", histoires: {}, comptee: false, ecranAvant: "ecr-depart" };
-const ECRANS = ["ecr-depart", "ecr-secrets", "ecr-manche", "ecr-jeu", "ecr-coup", "ecr-carte", "ecr-fin", "ecr-histoire", "ecr-stats", "ecr-demo"];
+const S = { noms: [], joueurs: [], but: 3, mode: "classique", musique: "cave", echo: "sec", manche: 0, cur: 0, sens: 1, question: "", ecoule: 0, duree: 0, passes: 0, enCours: false, dernier: 0, minuteur: null, battement: null, verrouPasse: null, frayeurs: [], noirT: null, alerteT: null, bandeauT: null, appelT: null, tenueT: null, bandeT: null, neigeT: null, ombreT: null, regardT: null, osdFige: false, poussee: null, repliques: {}, ordre: null, tenir: false, visage: -1, courte: false, malediction: null, debutTour: 0, faits: null, commentaire: null, premierMort: null, puni: "", histoires: {}, comptee: false, ecranAvant: "ecr-depart" };
+const ECRANS = ["ecr-depart", "ecr-manche", "ecr-jeu", "ecr-coup", "ecr-carte", "ecr-fin", "ecr-histoire", "ecr-stats", "ecr-demo"];
 function montre(id) { ECRANS.forEach(e => { $(e).hidden = e !== id; }); $(id).scrollTop = 0; document.body.classList.toggle("joue", ["ecr-jeu", "ecr-manche", "ecr-histoire", "ecr-demo"].includes(id)); }
 function osd(gauche, droite) { $("osd-gauche").textContent = gauche; $("osd-temps").textContent = droite; }
 function danger(p) { document.documentElement.style.setProperty("--danger", p); }
@@ -1687,39 +1676,15 @@ function nouvellePartie() {
   ecrire("tm-musique", S.musique);
   prechargeHistoire();
   tireRepliques(); prechargeVoix();
-  S.manche = 0; S.sens = 1; S.courte = false; S.malediction = null; S.premierMort = null; S.puni = ""; S.comptee = false; secretIndex = 0;
+  S.manche = 0; S.sens = 1; S.courte = false; S.malediction = null; S.premierMort = null; S.puni = ""; S.comptee = false;
   S.cur = Math.floor(Math.random() * S.joueurs.length);
   document.title = "Le Téléphone Maudit";
-  ouvreSecrets();
+  demarreCassette();
 }
-/* ---------- Les secrets ---------- */
-/* Au premier lancement, chaque joueur tape en cachette une peur ou un lieu de son enfance. Le téléphone le garde le temps de la soirée
-   (jamais sur le disque) et le lui chuchote au milieu d'une mèche. Qui ne veut rien dire passe, et n'est plus redemandé. */
-let secretIndex = 0;
-function ouvreSecrets() {
-  const i = S.joueurs.findIndex((j, k) => k >= secretIndex && S.secrets[j.nom] === undefined);
-  if (i < 0) { demarreCassette(); return; }
-  secretIndex = i;
-  const j = S.joueurs[i], suivant = S.joueurs.find((x, k) => k > i && S.secrets[x.nom] === undefined);
-  danger(0);
-  osd("REC · SECRETS", "▶ SP");
-  $("secret-nom").textContent = j.nom;
-  $("secret").value = "";
-  $("secret-garder").textContent = suivant ? "Garder, puis donner à " + suivant.nom : "Garder et lancer la cassette";
-  montre("ecr-secrets");
-}
-function gardeSecret(rien) {
-  const j = S.joueurs[secretIndex];
-  if (!j) { demarreCassette(); return; }
-  S.secrets[j.nom] = rien ? "" : $("secret").value.trim().slice(0, 40);
-  clic();
-  secretIndex++;
-  ouvreSecrets();
-}
-function demarreCassette() { ajouteSecrets(); if (HISTOIRES[S.musique] && !S.histoires[S.musique]) ouvreHistoire(); else ouvreManche(); }
+function demarreCassette() { if (HISTOIRES[S.musique] && !S.histoires[S.musique]) ouvreHistoire(); else ouvreManche(); }
 /* ---------- L'histoire de la cassette ---------- */
 /* Avant la première manche, le téléphone raconte d'où il vient : trois phrases selon la musique choisie, dites par sa voix, une fois par musique
-   et par soirée. Les phrases sont demandées à Gemini dès « Lancer », les secrets laissent le temps. « Première manche » coupe la voix et lance. */
+   et par soirée. Les phrases sont demandées à Gemini dès « Lancer » ; la garde de 45 s de raconte suffit si elles tardent. « Première manche » coupe la voix et lance. */
 function prechargeHistoire() { const h = HISTOIRES[S.musique]; if (h && !S.histoires[S.musique] && voixActive()) h.forEach(t => geminiParle(t, GEMINI.voix, GEMINI.style, false).catch(() => { /* raconte les redemandera */ })); }
 function ouvreHistoire() {
   const h = HISTOIRES[S.musique];
@@ -1908,7 +1873,6 @@ function planifieFrayeurs() {
   if (d >= 25000) {
     parfois(.7 + .2 * u, hasard(.15, .9) * d, chuchotement);
     parfois(.6 + .2 * u, hasard(.15, .8) * d, appel);
-    if (S.joueurs.some(j => S.secrets[j.nom])) parfois(.55 + .3 * u, hasard(.2, .85) * d, secretChuchote);
     if (S.joueurs.filter(j => !j.elimine).length >= 4) parfois(.6 + .2 * u, hasard(.12, .7) * d, ordre);
     if (Math.random() < .45 + .1 * u) {
       /* Deux poussées sur cinq sont posées pour que la mèche finisse au sommet. */
@@ -1920,22 +1884,14 @@ function planifieFrayeurs() {
   for (let i = 1; i < lourds.length; i++) if (lourds[i].a - lourds[i - 1].a < 3000) lourds[i].a = lourds[i - 1].a + 3000;
   S.frayeurs = [...lourds, ...liste.filter(e => e.leger)].filter(e => e.a < d - 3500).sort((x, y) => x.a - y.a);
 }
-function noirTexte(texte, duree, petit) {
+function noirTexte(texte, duree) {
   const n = $("noir"), p = $("noir-texte");
-  p.textContent = texte; p.classList.toggle("long", !!petit);
+  p.textContent = texte;
   n.hidden = false;
   clearTimeout(S.noirT);
   S.noirT = setTimeout(() => { n.hidden = true; }, duree);
 }
 function coupureNoire() { murmure(.4); noirTexte(tire(MURMURES), hasard(1300, 2100)); }
-/* Le secret : le téléphone chuchote à un joueur ce qu'il lui a confié au départ (le porteur le plus souvent), et l'écran noir l'affiche. */
-function secretChuchote() {
-  const porteurs = S.joueurs.filter(j => S.secrets[j.nom]);
-  if (!porteurs.length) return;
-  const cur = S.joueurs[S.cur], j = S.secrets[cur.nom] && Math.random() < .6 ? cur : tire(porteurs), r = S.repliques[j.nom];
-  chuchote(r && r.secret ? r.secret : j.nom + "... " + S.secrets[j.nom] + "...", .35);
-  noirTexte(S.secrets[j.nom], hasard(1600, 2400), S.secrets[j.nom].length > 18);
-}
 function bandeauJeu(texte, duree = 1600) {
   const b = $("jeu-alerte");
   b.textContent = texte; b.hidden = false;
@@ -2407,15 +2363,12 @@ $("ecouter-narratrice").addEventListener("click", async () => {
   b.textContent = "…";
   try {
     const buf = await geminiParle(DEMO[0].texte, GEMINI.narratrice, GEMINI.styleNarratrice);
-    if (buf) joueClair(buf); else $("note-voix").textContent = "Cassette v3.12 · narratrice " + GEMINI.narratrice + " : voix Gemini indisponible, touche « Garder » de nouveau.";
-  } catch (e) { $("note-voix").textContent = "Cassette v3.12 · narratrice " + GEMINI.narratrice + " : " + messageErreur(e); }
+    if (buf) joueClair(buf); else $("note-voix").textContent = "Cassette v3.13 · narratrice " + GEMINI.narratrice + " : voix Gemini indisponible, touche « Garder » de nouveau.";
+  } catch (e) { $("note-voix").textContent = "Cassette v3.13 · narratrice " + GEMINI.narratrice + " : " + messageErreur(e); }
   b.textContent = "Écouter";
 });
 document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener("change", () => { $("note-mode").hidden = r.value !== "survivant"; }));
 $("lancer").addEventListener("click", () => { ajouteNom(); if (S.noms.length < 3) return; reveilleSon(); reveilleVoix(); finApercu(); clic(); garderEcran(); nouvellePartie(); });
-$("form-secret").addEventListener("submit", e => { e.preventDefault(); gardeSecret(false); });
-$("secret-garder").addEventListener("click", () => gardeSecret(false));
-$("secret-rien").addEventListener("click", () => gardeSecret(true));
 $("allumer").addEventListener("click", () => { reveilleSon(); reveilleVoix(); lanceMeche(); });
 $("passer").addEventListener("pointerdown", poseDoigt);
 ["pointerup", "pointercancel", "pointerleave"].forEach(ev => $("passer").addEventListener(ev, leveDoigt));
