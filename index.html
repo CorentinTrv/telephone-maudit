@@ -327,9 +327,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
     <div class="bloc">
       <p class="etiquette">Écho de la voix du téléphone</p>
       <div class="musiques" role="radiogroup" aria-label="Écho de la voix du téléphone" id="echos">
-        <label><input type="radio" name="echo" value="sec"><span>Sec</span><small>la voix devant, un peu de cave</small></label>
-        <label><input type="radio" name="echo" value="cave" checked><span>Cave</span><small>écho et réverbération mesurés</small></label>
-        <label><input type="radio" name="echo" value="crypte"><span>Crypte</span><small>le réglage d'origine, très réverbéré</small></label>
+        <label><input type="radio" name="echo" value="sec" checked><span>Sec</span><small>presque sans écho</small></label>
+        <label><input type="radio" name="echo" value="cave"><span>Cave</span><small>un peu de cave</small></label>
+        <label><input type="radio" name="echo" value="crypte"><span>Crypte</span><small>réverbéré</small></label>
       </div>
       <p class="note">Touche un niveau pour l'entendre sur la voix Gemini (avec une clé).</p>
     </div>
@@ -360,7 +360,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
           <button class="discret" id="ecouter-narratrice" type="button">Écouter</button>
         </div>
       </div>
-      <p class="note" id="note-voix">Cassette v3.11</p>
+      <p class="note" id="note-voix">Cassette v3.12</p>
     </div>
     <div class="bas"><button class="gros" id="lancer" type="button" disabled>Ajoute au moins 3 joueurs</button></div>
   </section>
@@ -1125,7 +1125,7 @@ const GEMINI = {
   voix: "Algenib", style: "whispered, hoarse and breathy, very slow, with long pauses, menacing, like a ghost in an old horror film, French",
   /* La narratrice de la démo : une voix de femme, posée, un peu énigmatique. Despina par défaut ; le choix se fait à l'oreille sur l'accueil
      (VOIX_NARRATRICE), gardé dans tm-narratrice, et GEMINI.narratrice est réassignée à l'initialisation et au changement. */
-  narratrice: "Despina", styleNarratrice: "a calm, mysterious and enigmatic woman, soft, unhurried and intimate, as if sharing a secret, slightly amused, French"
+  narratrice: "Despina", styleNarratrice: "a calm, clear and composed woman narrating a ghost story aloud to a group, articulate, measured pace, slightly solemn, no whispering, not breathy, not intimate, French"
 };
 const VOIX_NARRATRICE = ["Despina", "Achernar", "Vindemiatrix", "Gacrux", "Sulafat", "Algenib"];
 const cacheGemini = new Map();
@@ -1358,9 +1358,9 @@ async function geminiParle(texte, voixId = GEMINI.voix, style = GEMINI.style, ur
    claire et pleine (Chirp, le lite) elle devenait envahissante, d'où « cave » par défaut et « sec ». retour/delai : l'écho ; mouille/cave : la
    réverbération (niveau, durée de la réponse en secondes) ; doublure/souffle : le niveau de la deuxième et de la troisième couche. */
 const ECHOS = {
-  sec:    { retour: .10, delai: .14, mouille: .18, cave: 1.3, doublure: .35, souffle: .22 },
-  cave:   { retour: .16, delai: .17, mouille: .26, cave: 1.7, doublure: .45, souffle: .26 },
-  crypte: { retour: .28, delai: .19, mouille: .40, cave: 2.2, doublure: .55, souffle: .30 }
+  sec:    { retour: .04, delai: .12, mouille: .08, cave: 1.0, doublure: .22, souffle: .14 },
+  cave:   { retour: .10, delai: .14, mouille: .18, cave: 1.3, doublure: .35, souffle: .22 },
+  crypte: { retour: .16, delai: .17, mouille: .26, cave: 1.7, doublure: .45, souffle: .26 }
 };
 const cavesCache = new Map();
 function caveDe(duree) { if (!cavesCache.has(duree)) cavesCache.set(duree, reponseCave(ac, duree)); return cavesCache.get(duree); }
@@ -1370,7 +1370,7 @@ function reponseCave(ctx, duree = 2.2) {
   return b;
 }
 function chaineHorrifique(ctx, buf, dest, quand) {
-  const t = quand === undefined ? ctx.currentTime : quand, niv = ECHOS[S.echo] || ECHOS.cave;
+  const t = quand === undefined ? ctx.currentTime : quand, niv = ECHOS[S.echo] || ECHOS.sec;
   const maitre = ctx.createGain(), trem = ctx.createGain(), bas = ctx.createBiquadFilter();
   maitre.gain.value = .9; trem.gain.value = .85; bas.type = "lowpass"; bas.frequency.value = 3000;
   const lfo = ctx.createOscillator(), prof = ctx.createGain();
@@ -1550,7 +1550,7 @@ function messageErreur(e) {
   return s ? "erreur " + s : "réseau ou décodage : " + (e && e.message);
 }
 function etatVoix() {
-  const n = $("note-voix"), tete = "Cassette v3.11 · ";
+  const n = $("note-voix"), tete = "Cassette v3.12 · ";
   if (cleGemini || cleCloud) {
     const fin = "clé …" + [cleGemini, cleCloud].filter(Boolean).map(c => c.slice(-4)).join(" + …") + " · voix Gemini : ";
     n.textContent = tete + fin + "vérification...";
@@ -1589,7 +1589,7 @@ function changeFond() {
 }
 
 /* ---------- La partie ---------- */
-const S = { noms: [], joueurs: [], but: 3, mode: "classique", musique: "cave", echo: "cave", manche: 0, cur: 0, sens: 1, question: "", ecoule: 0, duree: 0, passes: 0, enCours: false, dernier: 0, minuteur: null, battement: null, verrouPasse: null, frayeurs: [], noirT: null, alerteT: null, bandeauT: null, appelT: null, tenueT: null, bandeT: null, neigeT: null, ombreT: null, regardT: null, osdFige: false, poussee: null, repliques: {}, ordre: null, tenir: false, visage: -1, secrets: {}, courte: false, malediction: null, debutTour: 0, faits: null, commentaire: null, premierMort: null, puni: "", histoires: {}, comptee: false, ecranAvant: "ecr-depart" };
+const S = { noms: [], joueurs: [], but: 3, mode: "classique", musique: "cave", echo: "sec", manche: 0, cur: 0, sens: 1, question: "", ecoule: 0, duree: 0, passes: 0, enCours: false, dernier: 0, minuteur: null, battement: null, verrouPasse: null, frayeurs: [], noirT: null, alerteT: null, bandeauT: null, appelT: null, tenueT: null, bandeT: null, neigeT: null, ombreT: null, regardT: null, osdFige: false, poussee: null, repliques: {}, ordre: null, tenir: false, visage: -1, secrets: {}, courte: false, malediction: null, debutTour: 0, faits: null, commentaire: null, premierMort: null, puni: "", histoires: {}, comptee: false, ecranAvant: "ecr-depart" };
 const ECRANS = ["ecr-depart", "ecr-secrets", "ecr-manche", "ecr-jeu", "ecr-coup", "ecr-carte", "ecr-fin", "ecr-histoire", "ecr-stats", "ecr-demo"];
 function montre(id) { ECRANS.forEach(e => { $(e).hidden = e !== id; }); $(id).scrollTop = 0; document.body.classList.toggle("joue", ["ecr-jeu", "ecr-manche", "ecr-histoire", "ecr-demo"].includes(id)); }
 function osd(gauche, droite) { $("osd-gauche").textContent = gauche; $("osd-temps").textContent = droite; }
@@ -2407,8 +2407,8 @@ $("ecouter-narratrice").addEventListener("click", async () => {
   b.textContent = "…";
   try {
     const buf = await geminiParle(DEMO[0].texte, GEMINI.narratrice, GEMINI.styleNarratrice);
-    if (buf) joueClair(buf); else $("note-voix").textContent = "Cassette v3.11 · narratrice " + GEMINI.narratrice + " : voix Gemini indisponible, touche « Garder » de nouveau.";
-  } catch (e) { $("note-voix").textContent = "Cassette v3.11 · narratrice " + GEMINI.narratrice + " : " + messageErreur(e); }
+    if (buf) joueClair(buf); else $("note-voix").textContent = "Cassette v3.12 · narratrice " + GEMINI.narratrice + " : voix Gemini indisponible, touche « Garder » de nouveau.";
+  } catch (e) { $("note-voix").textContent = "Cassette v3.12 · narratrice " + GEMINI.narratrice + " : " + messageErreur(e); }
   b.textContent = "Écouter";
 });
 document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener("change", () => { $("note-mode").hidden = r.value !== "survivant"; }));
