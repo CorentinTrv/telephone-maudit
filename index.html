@@ -332,6 +332,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
         <input id="cle" type="password" placeholder="Clé AI Studio (AQ.A…)" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Clé Gemini">
         <button class="discret" type="submit">Garder</button>
       </form>
+      <p class="note">Voix sans plafond du jour (optionnel) : une clé Google Cloud limitée à l'API Text-to-Speech. Voix Chirp, sans chuchotement, le filtre du jeu s'en charge. Elle reste dans ce téléphone.</p>
+      <form class="ajout" id="form-cle-cloud">
+        <input id="cle-cloud" type="password" placeholder="Clé Cloud Text-to-Speech (AIza…)" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Clé Cloud Text-to-Speech">
+        <button class="discret" type="submit">Garder</button>
+      </form>
       <div class="bloc" id="bloc-narratrice" hidden>
         <p class="note">Voix de la narratrice (la démo) : touche « Écouter » pour la juger sur sa première phrase. Le choix reste dans ce téléphone.</p>
         <div class="ajout">
@@ -346,7 +351,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
           <button class="discret" id="ecouter-narratrice" type="button">Écouter</button>
         </div>
       </div>
-      <p class="note" id="note-voix">Cassette v3.8</p>
+      <p class="note" id="note-voix">Cassette v3.10</p>
     </div>
     <div class="bas"><button class="gros" id="lancer" type="button" disabled>Ajoute au moins 3 joueurs</button></div>
   </section>
@@ -1107,7 +1112,7 @@ function taisToi() {
    Gemini 3.8 Flash TTS, voix Enceladus (un souffle), demandés d'avance pour chaque joueur au lancement et gardés en mémoire.
    Sans clé, ou si l'appel échoue, la voix du système prend le relais. */
 const GEMINI = {
-  modele: "gemini-3.8-flash-tts", texte: "gemini-2.5-flash",
+  texte: "gemini-2.5-flash",
   voix: "Algenib", style: "whispered, hoarse and breathy, very slow, with long pauses, menacing, like a ghost in an old horror film, French",
   /* La narratrice de la démo : une voix de femme, posée, un peu énigmatique. Despina par défaut ; le choix se fait à l'oreille sur l'accueil
      (VOIX_NARRATRICE), gardé dans tm-narratrice, et GEMINI.narratrice est réassignée à l'initialisation et au changement. */
@@ -1115,30 +1120,226 @@ const GEMINI = {
 };
 const VOIX_NARRATRICE = ["Despina", "Achernar", "Vindemiatrix", "Gacrux", "Sulafat", "Algenib"];
 const cacheGemini = new Map();
-let cleGemini = "", panneGemini = 0, marquePrecharge = "";
-/* Le choix de la voix de la narratrice n'a de sens qu'avec une clé : le bloc suit la clé. */
-function montreChoixNarratrice() { $("bloc-narratrice").hidden = !cleGemini; }
-function lireCle() { const c = lire("tm-cle-gemini"); cleGemini = typeof c === "string" ? c.trim() : ""; $("cle").value = cleGemini; montreChoixNarratrice(); }
-async function geminiParle(texte, voixId = GEMINI.voix, style = GEMINI.style) {
-  if (!cleGemini || !ac || panneGemini) return null;
+let cleGemini = "", cleCloud = "", panneGemini = 0;
+/* Le choix de la voix de la narratrice n'a de sens qu'avec une clé (l'une ou l'autre) : le bloc suit les clés. */
+function montreChoixNarratrice() { $("bloc-narratrice").hidden = !(cleGemini || cleCloud); }
+function lireCle() {
+  const c = lire("tm-cle-gemini"), k = lire("tm-cle-cloud");
+  cleGemini = typeof c === "string" ? c.trim() : ""; cleCloud = typeof k === "string" ? k.trim() : "";
+  $("cle").value = cleGemini; $("cle-cloud").value = cleCloud; montreChoixNarratrice();
+}
+/* Les quatre réservoirs de voix, dans l'ordre de la qualité de jeu : d'abord les voix qui prennent la consigne de style (chuchotement, lenteur),
+   puis Chirp 3 HD de Cloud Text-to-Speech (sans style, sans plafond du jour, 0,6 s), puis le modèle AI Studio sans style en dernier recours.
+   Mesuré le 31/10/2026 : chaque modèle AI Studio accepte 10 requêtes par minute ET 100 par jour (palier 1) ; Chirp 200 par minute, aucun plafond
+   du jour. parMinute = nos départs par 60 s (une marge sous le quota), precharge = la part de cette fenêtre que les préchargements peuvent prendre. */
+const RESERVOIRS = [
+  { id: "gemini-3.8-flash-tts", porte: "studio", modele: "gemini-3.8-flash-tts", style: true, parMinute: 10, precharge: 6 },
+  { id: "gemini-3.8-flash-lite-tts", porte: "studio", modele: "gemini-3.8-flash-lite-tts", style: true, parMinute: 10, precharge: 6 },
+  { id: "cloud:chirp3-hd", porte: "cloud", modele: null, style: false, parMinute: 150, precharge: 100 },
+  { id: "gemini-3.1-flash-tts-preview", porte: "studio", modele: "gemini-3.1-flash-tts-preview", style: false, parMinute: 10, precharge: 6 }
+];
+/* pannes[id] : le code HTTP (400, 401 ou 403) qui a refusé ce réservoir ; panneGemini vaut pour les trois réservoirs AI Studio (clé refusée).
+   epuises[id] : l'échéance (ms depuis l'époque) d'un plafond du jour, gardée dans le téléphone (tm-tts-epuise) pour qu'un rechargement de page
+   aille directement au bon réservoir ; une échéance passée est ignorée et nettoyée. */
+let pannes = {}, epuises = {};
+const cleDe = r => r.porte === "cloud" ? cleCloud : cleGemini;
+const enPanne = r => !!pannes[r.id] || (r.porte === "studio" && !!panneGemini);
+const estEpuise = r => (epuises[r.id] || 0) > Date.now();
+function lireEpuises() {
+  const m = lire("tm-tts-epuise"), maintenant = Date.now();
+  epuises = {};
+  if (m && typeof m === "object" && !Array.isArray(m)) RESERVOIRS.forEach(r => { if (Number(m[r.id]) > maintenant) epuises[r.id] = Number(m[r.id]); });
+  if (m && Object.keys(m).length !== Object.keys(epuises).length) ecrire("tm-tts-epuise", epuises);
+}
+function marqueEpuise(r, echeance) { epuises[r.id] = echeance; ecrire("tm-tts-epuise", Object.assign({}, lire("tm-tts-epuise"), { [r.id]: echeance })); }
+/* « Garder » d'une clé : ses réservoirs repartent à neuf (ni épuisés ni en panne). */
+function reinitPorte(porte) {
+  const m = Object.assign({}, lire("tm-tts-epuise"));
+  RESERVOIRS.filter(r => r.porte === porte).forEach(r => { delete pannes[r.id]; delete epuises[r.id]; delete m[r.id]; });
+  if (porte === "studio") panneGemini = 0;
+  ecrire("tm-tts-epuise", m);
+}
+const reservoirsDisponibles = () => RESERVOIRS.filter(r => cleDe(r) && !enPanne(r) && !estEpuise(r));
+/* Les appelants gardent la voix du système sans clé, ou quand tous les réservoirs sont en panne. Des réservoirs épuisés, eux, comptent : la
+   demande est rejetée avec la raison (voix épuisées pour aujourd'hui) et l'appelant se rabat sur la voix du système. */
+const voixActive = () => !!ac && RESERVOIRS.some(r => cleDe(r) && !enPanne(r));
+/* La file des voix. Toute demande de voix passe ici. Par réservoir : parMinute départs par fenêtre glissante de 60 s, dont au plus `precharge`
+   pour les préchargements ; trois requêtes en vol à la fois au total, une seule file. Une urgente (ce qu'il faut dire maintenant) part sur le
+   premier réservoir disponible qui a une place libre dans sa fenêtre, et passe devant les préchargements ; un préchargement part sur le premier réservoir qui a une place de
+   préchargement libre (c'est le débordement : une partie à six joueurs charge en moins d'une minute) ou attend la première place qui se libère.
+   Un 429 de la minute arrête les départs du réservoir jusqu'au délai annoncé, puis la demande est remise en tête (deux reprises au plus) ;
+   un 429 « per day » épuise le réservoir jusqu'à son échéance et la demande repart sur le suivant. Le modèle de texte a son quota à lui. */
+const FENETRE_TTS = 60000, ENVOLS_TTS = 3, REPRISES_TTS = 2, DELAI_429 = 40, JOUR_MS = 86400000, MAX_TAMPONS = 300;
+const fileTts = { urgentes: [], precharges: [], departs: [], enVol: 0, jusqua: {}, minuteur: null };
+/* cle du cache -> les demandes pas encore résolues ; cle du cache -> id du réservoir qui a répondu (la ligne d'état le dit). */
+const enCours = new Map(), origine = new Map();
+function placeTts(r, t, precharge) {
+  if (t < (fileTts.jusqua[r.id] || 0)) return false;
+  const d = fileTts.departs.filter(x => x.id === r.id);
+  return d.length < r.parMinute && (!precharge || d.filter(x => x.precharge).length < r.precharge);
+}
+function choisisTts(t, dispo) {
+  /* Une urgente déborde aussi : elle part sur le premier réservoir disponible qui a une place libre dans sa fenêtre (une voix sans style vaut mieux
+     qu'une réplique arrivée une minute trop tard) ; si aucun n'en a, elle attend. */
+  if (fileTts.urgentes.length) {
+    const r = dispo.find(x => placeTts(x, t, false));
+    if (r) return { e: fileTts.urgentes.shift(), r };
+  }
+  if (!fileTts.precharges.length) return null;
+  const r = dispo.find(x => placeTts(x, t, true));
+  return r ? { e: fileTts.precharges.shift(), r } : null;
+}
+/* Plus aucun réservoir : le plafond du jour s'il y en a un (avec l'heure de retour), sinon la dernière panne. */
+function erreurSansReservoir(e) {
+  const ech = RESERVOIRS.filter(r => cleDe(r) && !enPanne(r) && estEpuise(r)).map(r => epuises[r.id]);
+  if (ech.length) return Object.assign(new Error("voix épuisées pour aujourd'hui"), { status: 429, jour: true, retour: Math.min(...ech) });
+  return Object.assign(new Error("voix en panne"), { status: (e.derniere && e.derniere.status) || Object.values(pannes)[0] || panneGemini || 503 });
+}
+function pompeTts() {
+  clearTimeout(fileTts.minuteur); fileTts.minuteur = null;
+  const t = performance.now();
+  fileTts.departs = fileTts.departs.filter(d => t - d.t < FENETRE_TTS);
+  const dispo = reservoirsDisponibles();
+  if (!dispo.length) {
+    const attente = [...fileTts.urgentes, ...fileTts.precharges];
+    fileTts.urgentes = []; fileTts.precharges = [];
+    attente.forEach(e => e.reject(erreurSansReservoir(e)));
+    return;
+  }
+  while (fileTts.enVol < ENVOLS_TTS) {
+    const c = choisisTts(t, dispo);
+    if (!c) break;
+    fileTts.departs.push({ t, id: c.r.id, precharge: !c.e.urgent });
+    envoieTts(c.e, c.r);
+  }
+  if (fileTts.enVol >= ENVOLS_TTS || !(fileTts.urgentes.length || fileTts.precharges.length)) return;
+  /* Rien ne peut partir : on se réveille à la fin du plus proche délai de 429 ou à la sortie du plus ancien départ de la fenêtre. */
+  const futurs = [...fileTts.departs.map(d => d.t + FENETRE_TTS), ...Object.values(fileTts.jusqua)].filter(x => x > t);
+  if (futurs.length) fileTts.minuteur = setTimeout(pompeTts, Math.min(...futurs) - t);
+}
+/* Un 429 : « per day » dans le corps = plafond du jour. Le délai, en secondes : l'en-tête retry-after s'il est lisible (en file://, ou chez Google
+   sans « expose-headers », il ne l'est pas toujours), sinon « retry in 17h35m35s » ou « retry in 39s » du corps, sinon null (l'appelant décide). */
+async function lis429(r) {
+  const corps = await r.text().catch(() => "");
+  let secondes = Number(r.headers.get("retry-after")) || 0;
+  if (!(secondes > 0)) {
+    const m = /retry in (?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/i.exec(corps);
+    secondes = m ? Number(m[1] || 0) * 3600 + Number(m[2] || 0) * 60 + Number(m[3] || 0) : 0;
+  }
+  return { jour: /per day/i.test(corps), secondes: secondes > 0 ? secondes : null };
+}
+const base64Octets = b64 => { const bin = atob(b64), oct = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) oct[i] = bin.charCodeAt(i); return oct.buffer; };
+/* Porte AI Studio : l'API Interactions. Forme validée le 31/10/2026 par un appel réel : 200, WAV RIFF 24 kHz. Un modèle sans style
+   (gemini-3.1-flash-tts-preview) refuse l'annotation speech_metadata (400) : le texte part nu. */
+async function appelStudio(e, r) {
+  const rep = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": cleGemini },
+    body: JSON.stringify({ model: r.modele, input: [{ type: "user_input", content: [r.style ? { type: "text", text: e.texte, annotations: [{ type: "speech_metadata", style: e.style }] } : { type: "text", text: e.texte }] }], response_format: { type: "audio" }, generation_config: { speech_config: [{ voice: e.voixId }] } })
+  });
+  if (!rep.ok) throw await erreurHttp(rep);
+  const j = await rep.json();
+  const audios = (j.steps || []).filter(s => s.type === "model_output").flatMap(s => s.content || []).filter(c => c.type === "audio" && c.data);
+  if (!audios.length) throw new Error("pas d'audio dans la réponse");
+  return base64Octets(audios[audios.length - 1].data);
+}
+/* Porte Cloud Text-to-Speech : voix Chirp 3 HD (mêmes noms de voix que Gemini), sans modelName ni prompt ni style. Les voix Gemini de Cloud
+   exigent une identité IAM (OAuth), qu'une clé d'API n'a pas : elles ne sont pas utilisables depuis une page. */
+async function appelCloud(e) {
+  const rep = await fetch("https://texttospeech.googleapis.com/v1/text:synthesize", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": cleCloud },
+    body: JSON.stringify({ input: { text: e.texte }, voice: { languageCode: "fr-FR", name: "fr-FR-Chirp3-HD-" + e.voixId }, audioConfig: { audioEncoding: "LINEAR16", sampleRateHertz: 24000 } })
+  });
+  if (!rep.ok) throw await erreurHttp(rep);
+  const j = await rep.json();
+  if (!j.audioContent) throw new Error("pas d'audio dans la réponse");
+  return base64Octets(j.audioContent);
+}
+async function erreurHttp(rep) {
+  const x = new Error("HTTP " + rep.status);
+  x.status = rep.status;
+  if (rep.status === 429) { const l = await lis429(rep); x.jour = l.jour; x.delai = l.secondes || (l.jour ? JOUR_MS / 1000 : DELAI_429); }
+  return x;
+}
+async function envoieTts(e, r) {
+  fileTts.enVol++;
+  const remet = () => (e.urgent ? fileTts.urgentes : fileTts.precharges).unshift(e);
+  try {
+    const octets = await (r.porte === "cloud" ? appelCloud(e) : appelStudio(e, r));
+    origine.set(e.cle, r.id);
+    gardeTampon(e.cle, octets.slice(0));
+    e.resolve(await ac.decodeAudioData(octets));
+    enCours.delete(e.cle);
+  } catch (x) {
+    if (x.status === 429 && x.jour) { marqueEpuise(r, Date.now() + x.delai * 1000); remet(); }
+    else if (x.status === 429 && e.reprises < REPRISES_TTS) { e.reprises++; fileTts.jusqua[r.id] = Math.max(fileTts.jusqua[r.id] || 0, performance.now() + x.delai * 1000); remet(); }
+    else if (x.status === 400 || x.status === 401 || x.status === 403) { pannes[r.id] = x.status; if (r.porte === "studio" && x.status === 401) panneGemini = 401; e.derniere = x; remet(); }
+    else { enCours.delete(e.cle); e.reject(x); }
+  } finally { fileTts.enVol--; pompeTts(); }
+}
+/* Les tampons gardés dans le téléphone (IndexedDB, base tm-voix, magasin tampons) : la clé du cache, le WAV tel que reçu et sa date. Un
+   rechargement de page, ou la démo du lendemain, ne coûtent plus une requête. 300 entrées au plus (les plus anciennes partent à l'écriture
+   suivante). Toute erreur d'IndexedDB (navigation privée, quota) est avalée : le jeu se comporte alors comme sans cette mémoire. */
+let baseVoix = null;
+function ouvreBase() {
+  if (!baseVoix) baseVoix = new Promise(ok => {
+    try {
+      const q = indexedDB.open("tm-voix", 1);
+      q.onupgradeneeded = () => q.result.createObjectStore("tampons").createIndex("date", "date");
+      q.onsuccess = () => { q.result.onversionchange = () => { q.result.close(); baseVoix = null; }; ok(q.result); };
+      q.onerror = q.onblocked = () => ok(null);
+    } catch { ok(null); }
+  });
+  return baseVoix;
+}
+async function lireTampon(cle) {
+  const db = await ouvreBase();
+  if (!db) return null;
+  return new Promise(ok => {
+    try { const q = db.transaction("tampons").objectStore("tampons").get(cle); q.onsuccess = () => ok(q.result ? q.result.octets : null); q.onerror = () => ok(null); } catch { ok(null); }
+  });
+}
+async function gardeTampon(cle, octets, date = Date.now()) {
+  const db = await ouvreBase();
+  if (!db) return;
+  return new Promise(ok => {
+    try {
+      const tx = db.transaction("tampons", "readwrite"), st = tx.objectStore("tampons");
+      st.put({ octets, date }, cle);
+      st.count().onsuccess = ev => {
+        let reste = ev.target.result - MAX_TAMPONS;
+        if (reste <= 0) return;
+        st.index("date").openKeyCursor().onsuccess = c => { const cur = c.target.result; if (cur && reste-- > 0) { st.delete(cur.primaryKey); cur.continue(); } };
+      };
+      tx.oncomplete = tx.onerror = tx.onabort = () => ok();
+    } catch { ok(); }
+  });
+}
+/* urgent = false pour un préchargement ; neuf = true pour ignorer la mémoire du téléphone (l'essai de « Tester le son » doit vraiment appeler).
+   Un appel urgent sur un texte déjà demandé en préchargement le passe en tête, sans seconde requête. */
+async function geminiParle(texte, voixId = GEMINI.voix, style = GEMINI.style, urgent = true, neuf = false) {
+  if (!voixActive()) return null;
   const cle = voixId + "\n" + texte;
-  if (cacheGemini.has(cle)) return cacheGemini.get(cle);
-  const p = (async () => {
-    const r = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
-      method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": cleGemini },
-      /* Forme validée le 31/10/2026 par un appel réel : 200, WAV RIFF 24 kHz, 91 jetons audio pour une phrase de cinq mots. */
-      body: JSON.stringify({ model: GEMINI.modele, input: [{ type: "user_input", content: [{ type: "text", text: texte, annotations: [{ type: "speech_metadata", style }] }] }], response_format: { type: "audio" }, generation_config: { speech_config: [{ voice: voixId }] } })
-    });
-    if (!r.ok) { const e = new Error("HTTP " + r.status); e.status = r.status; throw e; }
-    const j = await r.json();
-    const audios = (j.steps || []).filter(s => s.type === "model_output").flatMap(s => s.content || []).filter(c => c.type === "audio" && c.data);
-    if (!audios.length) throw new Error("pas d'audio dans la réponse");
-    const bin = atob(audios[audios.length - 1].data), oct = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) oct[i] = bin.charCodeAt(i);
-    return await ac.decodeAudioData(oct.buffer);
+  if (cacheGemini.has(cle)) {
+    const dejaLa = enCours.get(cle);
+    if (urgent && dejaLa && !dejaLa.urgent) {
+      dejaLa.urgent = true;
+      const i = fileTts.precharges.indexOf(dejaLa);
+      if (i >= 0) { fileTts.precharges.splice(i, 1); fileTts.urgentes.unshift(dejaLa); pompeTts(); }
+    }
+    return cacheGemini.get(cle);
+  }
+  const e = { cle, texte, voixId, style, urgent, reprises: 0 };
+  const p = new Promise((resolve, reject) => { e.resolve = resolve; e.reject = reject; });
+  cacheGemini.set(cle, p); enCours.set(cle, e);
+  p.catch(() => { cacheGemini.delete(cle); enCours.delete(cle); });
+  (async () => {
+    const octets = neuf ? null : await lireTampon(cle);
+    if (octets) {
+      try { origine.set(cle, "mémoire du téléphone"); e.resolve(await ac.decodeAudioData(octets.slice(0))); enCours.delete(cle); return; } catch { /* tampon abîmé : on redemande */ }
+    }
+    (e.urgent ? fileTts.urgentes : fileTts.precharges).push(e);
+    pompeTts();
   })();
-  cacheGemini.set(cle, p);
-  p.catch(e => { cacheGemini.delete(cle); if (e.status && e.status !== 429 && e.status < 500) panneGemini = e.status; });
   return p;
 }
 /* La voix rendue horrifique : trois couches du même énoncé (la voix ralentie d'un ton, une doublure grave et traînante, un souffle saturé),
@@ -1196,20 +1397,20 @@ function joueClair(buf) {
   s.start();
   D.clairs++;
 }
-/* Ce que dit la narratrice : avec une clé, Gemini avec sa propre voix, attendue jusqu'à douze secondes ; la voix du système, plus douce que
-   celle du téléphone, ne parle que sur une vraie erreur, sans clé, ou si Gemini n'a rien rendu au bout de ces douze secondes (une seule fois :
-   un tampon qui arrive après n'est pas joué). Une phrase en retard n'est pas dite si la démo est fermée, si l'étape a changé ou si une phrase
-   plus récente est partie. On ne compare plus le texte à celui de l'étape : « Bien. Il circule » et « Tiens-le enfoncé » sont dites pendant
-   l'étape 3, et cette garde les rendait muettes avec une clé. */
+/* Ce que dit la narratrice : avec une clé, Gemini avec sa propre voix, attendue jusqu'à soixante secondes (le texte est affiché ; la file et
+   une reprise après un 429 peuvent faire attendre) ; la voix du système, plus douce que celle du téléphone, ne parle que sur une vraie erreur,
+   sans clé, ou si Gemini n'a rien rendu au bout de ce délai (une seule fois : un tampon qui arrive après n'est pas joué). Une phrase en retard
+   n'est pas dite si la démo est fermée, si l'étape a changé ou si une phrase plus récente est partie. On ne compare plus le texte à celui de
+   l'étape : « Bien. Il circule » et « Tiens-le enfoncé » sont dites pendant l'étape 3, et cette garde les rendait muettes avec une clé. */
 let narration = 0;
 function narre(texte) {
   taisToi();
   const moi = ++narration, etape = D.etape;
-  if (cleGemini && ac && !panneGemini) {
+  if (voixActive()) {
     let dit = false;
     const actuel = () => !dit && moi === narration && D.etape === etape && !$("ecr-demo").hidden;
     const secours = () => { if (actuel()) { dit = true; parleSysteme(texte, true); } };
-    const garde = setTimeout(secours, 12000);
+    const garde = setTimeout(secours, 60000);
     geminiParle(texte, GEMINI.narratrice, GEMINI.styleNarratrice)
       .then(buf => { clearTimeout(garde); if (!actuel()) return; if (buf) { dit = true; joueClair(buf); } else secours(); })
       .catch(() => { clearTimeout(garde); secours(); });
@@ -1217,57 +1418,66 @@ function narre(texte) {
   }
   parleSysteme(texte, true);
 }
-/* Les neuf phrases de la narratrice (les sept étapes, « Il circule », « Tiens-le enfoncé »), demandées d'avance à Gemini, une toutes les
-   500 ms pour ne pas déclencher un 429, avec la voix choisie. Une fois par clé et par voix : « Garder » et un changement de voix remettent la
-   marque à zéro. sauf : la phrase que l'appelant demande déjà lui-même. Le cache rend la seconde ouverture gratuite. */
-function prechargeNarratrice(sauf) {
-  if (!cleGemini || !ac || panneGemini) return;
-  const marque = cleGemini + "|" + GEMINI.narratrice;
-  if (marque === marquePrecharge) return;
-  marquePrecharge = marque;
-  [...DEMO.map(e => e.texte), DEMO_PASSE, DEMO_TENIR].filter(t => t !== sauf).forEach((t, i) => setTimeout(() => {
-    if (marque !== cleGemini + "|" + GEMINI.narratrice || panneGemini) return;
-    geminiParle(t, GEMINI.narratrice, GEMINI.styleNarratrice).catch(() => { /* la phrase sera redemandée à son étape, le secours existe */ });
-  }, i * 500));
+/* Une phrase d'avance dans la démo : à l'étape i, la phrase i + 1 est demandée en préchargement (et, à l'étape de la mèche, « Il circule » et
+   « Tiens-le enfoncé » qu'elle dira). Neuf phrases d'un coup mangeaient le quota des phrases qu'il fallait dire tout de suite. */
+function prechargeEtape(i) {
+  if (!voixActive()) return;
+  const suite = [DEMO[i + 1] && DEMO[i + 1].texte, ...(DEMO[i].meche ? [DEMO_PASSE, DEMO_TENIR] : [])].filter(Boolean);
+  suite.forEach(t => geminiParle(t, GEMINI.narratrice, GEMINI.styleNarratrice, false).catch(() => { /* la phrase sera redemandée à son étape, le secours existe */ }));
 }
-/* L'histoire : les phrases demandées ensemble (quatre secondes de grâce), puis enchaînées dans la chaîne horrifique, chacune partant quand la
-   couche principale de la précédente se termine. Sans clé ou en retard, la voix du système dit le tout. */
+/* L'histoire : les phrases demandées ensemble (urgentes, elles passent devant les préchargements), attendues jusqu'à 45 s, puis enchaînées
+   dans la chaîne horrifique, chacune partant quand la couche principale de la précédente se termine. La voix du système dit le tout sur un
+   rejet ou à la garde, si l'écran de l'histoire est encore là ; un résultat arrivé après la garde n'est pas joué. */
 function raconte(phrases) {
   taisToi(); murmure(.25);
   const tout = phrases.join(" ");
-  if (cleGemini && ac && !panneGemini) {
-    Promise.race([Promise.all(phrases.map(t => geminiParle(t))), new Promise(r => setTimeout(() => r(null), 4000))])
+  if (voixActive()) {
+    let fini = false;
+    const secours = () => { if (fini) return; fini = true; if (!$("ecr-histoire").hidden) parleSysteme(tout); };
+    const garde = setTimeout(secours, 45000);
+    Promise.all(phrases.map(t => geminiParle(t)))
       .then(bufs => {
+        clearTimeout(garde);
+        if (fini) return;
+        fini = true;
         if ($("ecr-histoire").hidden) return;
-        if (!bufs || bufs.some(b => !b)) { parleSysteme(tout); return; }
+        if (bufs.some(b => !b)) { parleSysteme(tout); return; }
         let quand = ac.currentTime + .15;
         bufs.forEach(b => { chaineHorrifique(ac, b, sortie, quand); quand += b.duration / .9 + .6; });
       })
-      .catch(() => { if (!$("ecr-histoire").hidden) parleSysteme(tout); });
+      .catch(() => { clearTimeout(garde); secours(); });
     return;
   }
   parleSysteme(tout);
 }
 function chuchote(texte, fond = .22) {
   murmure(fond);
-  if (cleGemini && ac && !panneGemini) {
+  if (voixActive()) {
     geminiParle(texte).then(buf => { if (buf) joueTampon(buf); else parleSysteme(texte); }).catch(() => parleSysteme(texte));
     return true;
   }
   return parleSysteme(texte);
 }
-/* Les répliques de la partie, tirées une fois par joueur au lancement, pour les demander à Gemini d'avance. */
+/* Les répliques de la partie, tirées une fois par joueur dès « Lancer » (un chuchot, un ordre, un appel : le quota ne permet pas plus), et
+   demandées à Gemini d'avance en préchargement, joueur par joueur dans l'ordre de la table. Les secrets, connus après leurs écrans, viennent
+   ensuite (ajouteSecrets). La file cadence les envois. */
 function tireRepliques() {
   S.repliques = {};
   S.joueurs.forEach(j => {
-    S.repliques[j.nom] = { chuchots: melange(CHUCHOTS).slice(0, 2).map(t => t.replaceAll("{nom}", j.nom)), telephone: [tire(AU_TELEPHONE).replaceAll("{nom}", j.nom)], ordre: "donne-le à " + j.nom, secret: S.secrets[j.nom] ? j.nom + "... " + S.secrets[j.nom] + "..." : null };
+    S.repliques[j.nom] = { chuchots: melange(CHUCHOTS).slice(0, 1).map(t => t.replaceAll("{nom}", j.nom)), telephone: [tire(AU_TELEPHONE).replaceAll("{nom}", j.nom)], ordre: "donne-le à " + j.nom, secret: null };
   });
 }
-async function prechargeVoix() {
-  if (!cleGemini || !ac) return;
-  const textes = [];
-  Object.values(S.repliques).forEach(r => textes.push(...r.chuchots, ...r.telephone, r.ordre, ...(r.secret ? [r.secret] : [])));
-  for (let i = 0; i < textes.length; i += 3) await Promise.allSettled(textes.slice(i, i + 3).map(geminiParle));
+function prechargeTexte(t) { geminiParle(t, GEMINI.voix, GEMINI.style, false).catch(() => { /* la réplique sera redemandée au moment de la dire */ }); }
+function prechargeVoix() {
+  if (!voixActive()) return;
+  S.joueurs.forEach(j => { const r = S.repliques[j.nom]; [...r.chuchots, r.ordre, ...r.telephone].forEach(prechargeTexte); });
+}
+function ajouteSecrets() {
+  S.joueurs.forEach(j => {
+    if (!S.secrets[j.nom]) return;
+    S.repliques[j.nom].secret = j.nom + "... " + S.secrets[j.nom] + "...";
+    if (voixActive()) prechargeTexte(S.repliques[j.nom].secret);
+  });
 }
 /* Le téléphone commente la manche : une phrase écrite par Gemini sur les faits (qui a brûlé, qui a traîné, le secret du perdant), dite par la voix.
    Sans clé, en panne ou trop lent (2,5 s), un gabarit local prend la place : la table ne voit jamais la différence d'attente. */
@@ -1316,19 +1526,26 @@ function faitsDeManche(perdant) {
 function messageErreur(e) {
   const s = e && e.status;
   if (s === 402) return "crédit épuisé (402), recharge sur aistudio.google.com/billing";
-  if (s === 429) return "quota atteint (429), réessaie dans une minute";
+  if (s === 429 && e.jour) return "voix épuisées pour aujourd'hui (100 par jour et par modèle), retour vers " + new Date(e.retour).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }).replace(":", "h");
+  if (s === 429) return "quota atteint (429) : 10 voix par minute, réessaie dans " + (e.delai || DELAI_429) + " s";
   if (s === 404) return "modèle fermé à ce projet (404)";
   if (s === 400 || s === 401 || s === 403) return "clé refusée (" + s + ")";
   return s ? "erreur " + s : "réseau ou décodage : " + (e && e.message);
 }
 function etatVoix() {
-  const n = $("note-voix"), tete = "Cassette v3.8 · ";
-  if (cleGemini) {
-    const fin = "clé …" + cleGemini.slice(-4) + " · voix Gemini : ";
+  const n = $("note-voix"), tete = "Cassette v3.10 · ";
+  if (cleGemini || cleCloud) {
+    const fin = "clé …" + [cleGemini, cleCloud].filter(Boolean).map(c => c.slice(-4)).join(" + …") + " · voix Gemini : ";
     n.textContent = tete + fin + "vérification...";
-    reveilleSon(); panneGemini = 0;
-    geminiParle("il connaît ton prénom")
-      .then(buf => { if (buf) { n.textContent = tete + fin + "prête (" + GEMINI.voix + ")"; joueTampon(buf); } else n.textContent = tete + fin + "le son n'est pas réveillé, touche « Tester le son » puis « Garder » de nouveau."; })
+    reveilleSon(); panneGemini = 0; pannes = {};
+    /* L'essai appelle pour de bon (neuf) et dit d'abord les réservoirs mis en panne en chemin, puis celui qui a répondu. */
+    geminiParle("il connaît ton prénom", GEMINI.voix, GEMINI.style, true, true)
+      .then(buf => {
+        if (!buf) { n.textContent = tete + fin + "le son n'est pas réveillé, touche « Tester le son » puis « Garder » de nouveau."; return; }
+        const hs = RESERVOIRS.filter(r => pannes[r.id]).map(r => r.id + " en panne (" + pannes[r.id] + ") · ").join("");
+        n.textContent = tete + fin + hs + "prête (" + GEMINI.voix + ", " + origine.get(GEMINI.voix + "\nil connaît ton prénom") + ")";
+        joueTampon(buf);
+      })
       .catch(e => { n.textContent = tete + fin + messageErreur(e) + ". En attendant, la voix du système."; });
     return;
   }
@@ -1452,6 +1669,7 @@ function nouvellePartie() {
   S.musique = (document.querySelector('input[name="musique"]:checked') || {}).value || "cave";
   ecrire("tm-musique", S.musique);
   prechargeHistoire();
+  tireRepliques(); prechargeVoix();
   S.manche = 0; S.sens = 1; S.courte = false; S.malediction = null; S.premierMort = null; S.puni = ""; S.comptee = false; secretIndex = 0;
   S.cur = Math.floor(Math.random() * S.joueurs.length);
   document.title = "Le Téléphone Maudit";
@@ -1481,11 +1699,11 @@ function gardeSecret(rien) {
   secretIndex++;
   ouvreSecrets();
 }
-function demarreCassette() { tireRepliques(); prechargeVoix(); if (HISTOIRES[S.musique] && !S.histoires[S.musique]) ouvreHistoire(); else ouvreManche(); }
+function demarreCassette() { ajouteSecrets(); if (HISTOIRES[S.musique] && !S.histoires[S.musique]) ouvreHistoire(); else ouvreManche(); }
 /* ---------- L'histoire de la cassette ---------- */
 /* Avant la première manche, le téléphone raconte d'où il vient : trois phrases selon la musique choisie, dites par sa voix, une fois par musique
    et par soirée. Les phrases sont demandées à Gemini dès « Lancer », les secrets laissent le temps. « Première manche » coupe la voix et lance. */
-function prechargeHistoire() { const h = HISTOIRES[S.musique]; if (h && !S.histoires[S.musique] && cleGemini && ac && !panneGemini) h.forEach(t => geminiParle(t)); }
+function prechargeHistoire() { const h = HISTOIRES[S.musique]; if (h && !S.histoires[S.musique] && voixActive()) h.forEach(t => geminiParle(t, GEMINI.voix, GEMINI.style, false).catch(() => { /* raconte les redemandera */ })); }
 function ouvreHistoire() {
   const h = HISTOIRES[S.musique];
   S.histoires[S.musique] = true;
@@ -2010,8 +2228,6 @@ function ouvreDemo() {
   danger(0); osd("REC · DÉMO", "▶ SP"); $("pause-btn").hidden = true;
   montre("ecr-demo");
   etapeDemo(0);
-  /* Les autres phrases sont demandées à Gemini d'avance, espacées, la première (que narre vient de demander) passant devant. */
-  prechargeNarratrice(DEMO[0].texte);
 }
 function etapeDemo(i) {
   arreteDemoMeche();
@@ -2024,6 +2240,7 @@ function etapeDemo(i) {
   $("demo-suite").hidden = !!e.meche;
   $("demo-suite").textContent = e.fin ? "J'ai compris" : "Suite";
   narre(e.texte);
+  prechargeEtape(i);
   if (e.meche) demarreDemoMeche();
 }
 function demarreDemoMeche() {
@@ -2130,39 +2347,43 @@ function retourDepart() {
 /* ---------- Branchements ---------- */
 $("form-nom").addEventListener("submit", e => { e.preventDefault(); ajouteNom(); });
 document.querySelectorAll('input[name="musique"]').forEach(r => r.addEventListener("click", () => { ecrire("tm-musique", r.value); apercu(r.value); }));
-$("tester-son").addEventListener("click", () => { reveilleSon(); reveilleVoix(); finApercu(); coeur(1); setTimeout(coups, 400); setTimeout(murmure, 1500); setTimeout(() => { etatVoix(); if (!cleGemini) chuchote("il connaît ton prénom"); }, 2800); });
+$("tester-son").addEventListener("click", () => { reveilleSon(); reveilleVoix(); finApercu(); coeur(1); setTimeout(coups, 400); setTimeout(murmure, 1500); setTimeout(() => { etatVoix(); if (!cleGemini && !cleCloud) chuchote("il connaît ton prénom"); }, 2800); });
 /* « Garder » : la clé est prise en mémoire tout de suite, même si le navigateur refuse de la mémoriser entre deux ouvertures ; le bouton le dit. */
 $("form-cle").addEventListener("submit", e => {
   e.preventDefault();
   const v = $("cle").value.trim(), b = $("form-cle").querySelector("button");
-  cleGemini = v; panneGemini = 0; cacheGemini.clear(); marquePrecharge = ""; montreChoixNarratrice();
+  cleGemini = v; reinitPorte("studio"); cacheGemini.clear(); montreChoixNarratrice();
   const gardee = ecrire("tm-cle-gemini", v);
   b.textContent = !v ? "Effacée" : gardee ? "Gardée ✓" : "Prise (non mémorisée)";
   setTimeout(() => { b.textContent = "Garder"; }, 3000);
   reveilleSon(); etatVoix();
 });
-/* La voix de la narratrice : le choix est gardé dans ce téléphone ; « Écouter » juge la première phrase de la démo, déjà demandée pour la démo. */
+/* La clé Google Cloud (Text-to-Speech, voix Chirp) : même geste, mêmes retours ; ses réservoirs repartent à neuf. */
+$("form-cle-cloud").addEventListener("submit", e => {
+  e.preventDefault();
+  const v = $("cle-cloud").value.trim(), b = $("form-cle-cloud").querySelector("button");
+  cleCloud = v; reinitPorte("cloud"); cacheGemini.clear(); montreChoixNarratrice();
+  const gardee = ecrire("tm-cle-cloud", v);
+  b.textContent = !v ? "Effacée" : gardee ? "Gardée ✓" : "Prise (non mémorisée)";
+  setTimeout(() => { b.textContent = "Garder"; }, 3000);
+  reveilleSon(); etatVoix();
+});
+/* La voix de la narratrice : le choix est gardé dans ce téléphone ; « Écouter » juge la première phrase de la démo, et rien d'autre
+   (une seule requête, urgente : le quota ne laisse pas de place aux phrases d'avance). */
 $("narratrice").addEventListener("change", e => {
   const v = e.target.value;
   if (!VOIX_NARRATRICE.includes(v)) return;
-  ecrire("tm-narratrice", v); GEMINI.narratrice = v; marquePrecharge = "";
+  ecrire("tm-narratrice", v); GEMINI.narratrice = v;
 });
 $("ecouter-narratrice").addEventListener("click", async () => {
   const b = $("ecouter-narratrice");
   reveilleSon(); reveilleVoix(); taisToi();
   b.textContent = "…";
-  prechargeNarratrice(DEMO[0].texte);
   try {
     const buf = await geminiParle(DEMO[0].texte, GEMINI.narratrice, GEMINI.styleNarratrice);
-    if (buf) joueClair(buf); else $("note-voix").textContent = "Cassette v3.8 · narratrice " + GEMINI.narratrice + " : voix Gemini indisponible, touche « Garder » de nouveau.";
-  } catch (e) { $("note-voix").textContent = "Cassette v3.8 · narratrice " + GEMINI.narratrice + " : " + messageErreur(e); }
+    if (buf) joueClair(buf); else $("note-voix").textContent = "Cassette v3.10 · narratrice " + GEMINI.narratrice + " : voix Gemini indisponible, touche « Garder » de nouveau.";
+  } catch (e) { $("note-voix").textContent = "Cassette v3.10 · narratrice " + GEMINI.narratrice + " : " + messageErreur(e); }
   b.textContent = "Écouter";
-});
-/* Tout geste sur l'accueil, avec une clé, réveille le son (le geste le permet) et lance le préchargement des phrases de la narratrice ;
-   « Garder » est exclu : la clé change dans ce même geste. */
-document.addEventListener("click", e => {
-  if (!cleGemini || $("ecr-depart").hidden || e.target.closest("#form-cle")) return;
-  reveilleSon(); prechargeNarratrice();
 });
 document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener("change", () => { $("note-mode").hidden = r.value !== "survivant"; }));
 $("lancer").addEventListener("click", () => { ajouteNom(); if (S.noms.length < 3) return; reveilleSon(); reveilleVoix(); finApercu(); clic(); garderEcran(); nouvellePartie(); });
@@ -2208,7 +2429,7 @@ if (radioMusique) radioMusique.checked = true;
 const modeMemoire = lire("tm-mode");
 const radioMode = typeof modeMemoire === "string" && document.querySelector('input[name="mode"][value="' + modeMemoire + '"]');
 if (radioMode) { radioMode.checked = true; $("note-mode").hidden = modeMemoire !== "survivant"; }
-lireCle();
+lireCle(); lireEpuises();
 const voixMemoire = lire("tm-narratrice");
 if (VOIX_NARRATRICE.includes(voixMemoire)) GEMINI.narratrice = voixMemoire;
 $("narratrice").value = GEMINI.narratrice;
