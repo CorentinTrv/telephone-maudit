@@ -295,6 +295,15 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
       <ul class="profils" id="liste-profils" hidden></ul>
     </div>
     <div class="bloc">
+      <p class="etiquette">Vos questions</p>
+      <form class="ajout" id="form-question">
+        <input id="question-perso" type="text" maxlength="60" placeholder="Cite un surnom de Tom" autocomplete="off" aria-label="Question de la table">
+        <button class="discret" type="submit">Ajouter</button>
+      </form>
+      <ul class="joueurs" id="liste-questions"></ul>
+      <p class="note">Elles se mêlent aux questions du jeu, marquées « Question de la table ». Elles restent dans ce téléphone.</p>
+    </div>
+    <div class="bloc">
       <p class="etiquette">Marques avant la fin</p>
       <div class="choix" role="radiogroup" aria-label="Marques avant la fin">
         <label><input id="duree-2" type="radio" name="duree" value="2">2<br>environ 10 min</label>
@@ -309,6 +318,14 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
         <label><input id="mode-survivant" type="radio" name="mode" value="survivant">Survivant<br>au compte, tu sors de la table</label>
       </div>
       <p class="note" id="note-mode" hidden>Survivant : le dernier vivant gagne. La partie est plus longue, et la mèche raccourcit à chaque éliminé.</p>
+    </div>
+    <div class="bloc">
+      <p class="etiquette">Intensité de la soirée</p>
+      <div class="musiques" role="radiogroup" aria-label="Intensité de la soirée" id="intensites">
+        <label><input id="intensite-douce" type="radio" name="intensite" value="douce"><span>Douce</span><small>moitié moins de gorgées et de frayeurs, questions pour tous, pas de carte gênante</small></label>
+        <label><input id="intensite-normale" type="radio" name="intensite" value="normale" checked><span>Normale</span><small>le jeu tel quel</small></label>
+        <label><input id="intensite-brutale" type="radio" name="intensite" value="brutale"><span>Brutale</span><small>gorgées et demie, frayeurs serrées, mèche courte une fois sur quatre</small></label>
+      </div>
     </div>
     <div class="bloc">
       <p class="etiquette">Musique de la mèche</p>
@@ -365,7 +382,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
           <button class="discret" id="ecouter-narratrice" type="button">Écouter</button>
         </div>
       </div>
-      <p class="note" id="note-voix">Cassette v3.14</p>
+      <p class="note" id="note-voix">Cassette v3.16</p>
     </div>
     <div class="bas"><button class="gros" id="lancer" type="button" disabled>Ajoute au moins 3 joueurs</button></div>
   </section>
@@ -373,7 +390,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
   <section class="ecr" id="ecr-manche" hidden>
     <img id="manche-fond" src="img/peur-2.jpg" alt="" decoding="async">
     <div class="milieu">
-      <p class="etiquette">Question de la manche</p>
+      <p class="etiquette" id="manche-etiquette">Question de la manche</p>
       <p class="question" id="manche-question"></p>
       <p class="corps" id="manche-qui"></p>
       <p class="etiquette" id="manche-recap" hidden>Où en est la table</p>
@@ -496,42 +513,43 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--phosphore);
 /* ---------- Le contenu ---------- */
 /* Des catégories larges, à la Tic Tac Boum : quinze réponses évidentes au moins, qu'on sort sans réfléchir. Pas de question d'esprit.
    Tout est sur le thème d'Halloween depuis le 31/10 (liste v1, context/import/jeux/2026-10-31_telephone-maudit_questions-halloween_v1.md).
-   Trois niveaux : 1 la table entière répond, 2 culture populaire d'adulte, 3 cinéphiles et curieux (peu, elles font sécher). */
+   Trois niveaux : 1 la table entière répond, 2 culture populaire d'adulte, 3 cinéphiles et curieux (peu, elles font sécher).
+   Chaque question est une paire [texte, niveau] ; l'intensité Douce ne garde que le niveau 1. */
 const QUESTIONS = [
   /* Niveau 1 */
-  "Cite un déguisement d'Halloween.", "Cite une décoration d'Halloween.", "Cite une chose qu'on fait à Halloween.",
-  "Cite un bonbon ou une sucrerie.", "Cite une marque de bonbons ou de chocolat.",
-  "Cite une chose qu'une sorcière possède ou utilise.", "Cite une chose qu'une sorcière met dans son chaudron.",
-  "Cite une chose que fait un fantôme.", "Cite une chose que fait un vampire, ou qui le trahit.",
-  "Cite une chose qui éloigne un vampire ou un démon.", "Cite un monstre ou une créature de légende.",
-  "Cite un animal qu'on associe à Halloween ou à la nuit.", "Cite un animal qu'on ne veut pas croiser la nuit.",
-  "Cite un animal qui pique, qui mord ou qui rampe.", "Cite un insecte ou une bestiole.", "Cite un os du squelette.",
-  "Cite une chose qu'on trouve dans un cimetière.", "Cite une chose qu'on trouve dans une maison hantée.",
-  "Cite une chose qu'on trouve dans une cave ou un grenier.", "Cite une chose qu'on ne veut pas trouver sous son lit.",
-  "Cite un bruit qui fait peur la nuit.", "Cite un endroit qui fait peur la nuit.", "Cite une chose qui brille ou qui bouge dans le noir.",
-  "Cite une chose qui fait peur aux enfants.", "Cite une chose qu'on fait quand on a peur.", "Cite une façon de faire peur à quelqu'un.",
-  "Cite une cachette dans une maison.", "Cite un objet de la maison qui peut servir d'arme.",
-  "Cite une mauvaise idée quand on est seul dans une maison la nuit.", "Cite une excuse pour ne pas descendre à la cave.",
-  "Cite un cauchemar classique.", "Cite une chose qui porte malheur, ou une superstition.",
-  "Cite une chose qui porte bonheur ou qui protège du mal.", "Cite une phobie, une chose dont les gens ont peur.",
-  "Cite un plat ou un aliment dégoûtant.", "Cite une chose qui sent mauvais.",
+  ["Cite un déguisement d'Halloween.", 1], ["Cite une décoration d'Halloween.", 1], ["Cite une chose qu'on fait à Halloween.", 1],
+  ["Cite un bonbon ou une sucrerie.", 1], ["Cite une marque de bonbons ou de chocolat.", 1],
+  ["Cite une chose qu'une sorcière possède ou utilise.", 1], ["Cite une chose qu'une sorcière met dans son chaudron.", 1],
+  ["Cite une chose que fait un fantôme.", 1], ["Cite une chose que fait un vampire, ou qui le trahit.", 1],
+  ["Cite une chose qui éloigne un vampire ou un démon.", 1], ["Cite un monstre ou une créature de légende.", 1],
+  ["Cite un animal qu'on associe à Halloween ou à la nuit.", 1], ["Cite un animal qu'on ne veut pas croiser la nuit.", 1],
+  ["Cite un animal qui pique, qui mord ou qui rampe.", 1], ["Cite un insecte ou une bestiole.", 1], ["Cite un os du squelette.", 1],
+  ["Cite une chose qu'on trouve dans un cimetière.", 1], ["Cite une chose qu'on trouve dans une maison hantée.", 1],
+  ["Cite une chose qu'on trouve dans une cave ou un grenier.", 1], ["Cite une chose qu'on ne veut pas trouver sous son lit.", 1],
+  ["Cite un bruit qui fait peur la nuit.", 1], ["Cite un endroit qui fait peur la nuit.", 1], ["Cite une chose qui brille ou qui bouge dans le noir.", 1],
+  ["Cite une chose qui fait peur aux enfants.", 1], ["Cite une chose qu'on fait quand on a peur.", 1], ["Cite une façon de faire peur à quelqu'un.", 1],
+  ["Cite une cachette dans une maison.", 1], ["Cite un objet de la maison qui peut servir d'arme.", 1],
+  ["Cite une mauvaise idée quand on est seul dans une maison la nuit.", 1], ["Cite une excuse pour ne pas descendre à la cave.", 1],
+  ["Cite un cauchemar classique.", 1], ["Cite une chose qui porte malheur, ou une superstition.", 1],
+  ["Cite une chose qui porte bonheur ou qui protège du mal.", 1], ["Cite une phobie, une chose dont les gens ont peur.", 1],
+  ["Cite un plat ou un aliment dégoûtant.", 1], ["Cite une chose qui sent mauvais.", 1],
   /* Niveau 2 */
-  "Cite un film d'horreur.", "Cite un film avec des zombies, des vampires ou des fantômes.",
-  "Cite un film ou un dessin animé d'Halloween pour les enfants.", "Cite un tueur ou un méchant de cinéma.",
-  "Cite un méchant de dessin animé.", "Cite une série qui fait peur.", "Cite un jeu vidéo qui fait peur.",
-  "Cite un personnage de Harry Potter.", "Cite une sorcière ou un sorcier célèbre.",
-  "Cite une arme de film d'horreur.", "Cite une façon de mourir dans un film d'horreur.",
-  "Cite une erreur qu'on fait toujours dans un film d'horreur.", "Cite un lieu classique de film d'horreur.",
-  "Cite un objet qui peut être hanté ou possédé.", "Cite une formule magique ou un sort.", "Cite un pouvoir de monstre ou de sorcière.",
-  "Cite une chanson ou un groupe qu'on met à une soirée d'Halloween.", "Cite une attraction ou une activité à sensations qui fait peur.",
-  "Cite un métier qui côtoie les morts ou la nuit.", "Cite une chose qu'on trouve dans le laboratoire d'un savant fou.",
-  "Cite une créature de la mythologie qui fait peur.", "Cite un cocktail ou une boisson rouge comme le sang.",
-  "Cite une chose qu'on regrette le lendemain d'une soirée d'Halloween.", "Cite une créature qui sort la nuit.",
+  ["Cite un film d'horreur.", 2], ["Cite un film avec des zombies, des vampires ou des fantômes.", 2],
+  ["Cite un film ou un dessin animé d'Halloween pour les enfants.", 2], ["Cite un tueur ou un méchant de cinéma.", 2],
+  ["Cite un méchant de dessin animé.", 2], ["Cite une série qui fait peur.", 2], ["Cite un jeu vidéo qui fait peur.", 2],
+  ["Cite un personnage de Harry Potter.", 2], ["Cite une sorcière ou un sorcier célèbre.", 2],
+  ["Cite une arme de film d'horreur.", 2], ["Cite une façon de mourir dans un film d'horreur.", 2],
+  ["Cite une erreur qu'on fait toujours dans un film d'horreur.", 2], ["Cite un lieu classique de film d'horreur.", 2],
+  ["Cite un objet qui peut être hanté ou possédé.", 2], ["Cite une formule magique ou un sort.", 2], ["Cite un pouvoir de monstre ou de sorcière.", 2],
+  ["Cite une chanson ou un groupe qu'on met à une soirée d'Halloween.", 2], ["Cite une attraction ou une activité à sensations qui fait peur.", 2],
+  ["Cite un métier qui côtoie les morts ou la nuit.", 2], ["Cite une chose qu'on trouve dans le laboratoire d'un savant fou.", 2],
+  ["Cite une créature de la mythologie qui fait peur.", 2], ["Cite un cocktail ou une boisson rouge comme le sang.", 2],
+  ["Cite une chose qu'on regrette le lendemain d'une soirée d'Halloween.", 2], ["Cite une créature qui sort la nuit.", 2],
   /* Niveau 3 */
-  "Cite un fantôme ou une légende urbaine.", "Cite une créature des légendes de France ou de Bretagne.",
-  "Cite un roman ou un film tiré de Stephen King.", "Cite un auteur ou un livre qui fait peur.", "Cite un film de Tim Burton.",
-  "Cite un personnage de Stranger Things.", "Cite un vampire, un zombie ou un loup-garou célèbre.",
-  "Cite un démon, un diable ou une figure des enfers.", "Cite une tradition d'Halloween ou d'une fête des morts, ici ou ailleurs."
+  ["Cite un fantôme ou une légende urbaine.", 3], ["Cite une créature des légendes de France ou de Bretagne.", 3],
+  ["Cite un roman ou un film tiré de Stephen King.", 3], ["Cite un auteur ou un livre qui fait peur.", 3], ["Cite un film de Tim Burton.", 3],
+  ["Cite un personnage de Stranger Things.", 3], ["Cite un vampire, un zombie ou un loup-garou célèbre.", 3],
+  ["Cite un démon, un diable ou une figure des enfers.", 3], ["Cite une tradition d'Halloween ou d'une fête des morts, ici ou ailleurs.", 3]
 ];
 
 const CARTES = [
@@ -658,6 +676,18 @@ const HISTOIRES = {
   aucune: ["Pas de musique, ce soir. Seulement un cœur. Le vôtre, croyez-vous.", "Il battait déjà quand on m'a enterré. Il bat encore. Il ne s'est jamais arrêté.", "Quand il s'emballera, ne cherchez pas le vôtre. C'est le mien que vous entendrez."]
 };
 
+/* L'histoire à continuer : une manche sur cinq, le téléphone ouvre une histoire selon la musique, chaque porteur y ajoute une phrase avant de passer.
+   Celui qui le tient à l'explosion meurt dans l'histoire. Jamais la première manche, jamais une manche courte d'accusation. */
+const DEBUTS = {
+  cave: ["Il était une nuit, dans une cave sans porte, et quelqu'un venait de descendre l'escalier.", "Il était une nuit, la lumière de la cave a grésillé, et on a compté une personne de trop."],
+  boite: ["Il était une nuit, la boîte à musique s'est ouverte toute seule, et la mélodie n'était pas la bonne.", "Il était une nuit, la petite fille a demandé qui chantait dans sa chambre."],
+  orgue: ["Il était une nuit, l'orgue de la crypte a joué pour des bancs vides, et quelqu'un a applaudi.", "Il était une nuit, l'organiste a senti des mains se poser sur les siennes."],
+  vent: ["Il était une nuit, dans la maison vide, le téléphone a sonné, et quelqu'un a décroché.", "Il était une nuit, le robinet gouttait, et les pas sont montés jusqu'à la chambre."],
+  aucune: ["Il était une nuit, il n'y avait plus que le bruit d'un cœur, et ce n'était celui de personne à table.", "Il était une nuit, le cœur a battu plus vite, et ils ont compris qu'il écoutait."]
+};
+/* En Survivant, après chaque élimination, la voix compte ceux qui restent. Phrases fixes : payées une fois par téléphone, puis gardées. */
+const VIVANTS = { 2: "Il en reste deux.", 3: "Il en reste trois.", 4: "Il en reste quatre.", 5: "Il en reste cinq.", 6: "Il en reste six.", 7: "Il en reste sept.", 8: "Il en reste huit.", 9: "Il en reste neuf.", 10: "Il en reste dix.", 11: "Il en reste onze.", 12: "Il en reste douze." };
+
 /* La démo : la narratrice (une autre voix, une femme, énigmatique) explique le jeu en sept étapes. L'étape « mèche » est une vraie mèche
    de seize secondes à passer et à tenir, qui finit par hurler. Rien de la démo n'est compté dans les profils. */
 const DEMO = [
@@ -678,8 +708,19 @@ const hasard = (a, b) => a + Math.random() * (b - a);
 const tire = t => t[Math.floor(Math.random() * t.length)];
 const melange = t => { const c = [...t]; for (let i = c.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [c[i], c[j]] = [c[j], c[i]]; } return c; };
 const paquet = t => { let pile = []; return () => { if (!pile.length) pile = melange(t); return pile.pop(); }; };
-const prochaineQuestion = paquet(QUESTIONS);
-const prochaineCarte = paquet(CARTES);
+let prochaineQuestion = paquet(QUESTIONS.map(q => q[0]));
+let prochaineCarte = paquet(CARTES);
+/* L'intensité de la soirée : les gorgées, la densité des frayeurs, la part des mèches courtes, le niveau des questions et les cartes gênantes.
+   Normale est le jeu tel quel. */
+const INTENSITES = {
+  douce:   { gorgees: .5,  frayeurs: .5,  courte: 1 / 10, niveau: 1, genants: false },
+  normale: { gorgees: 1,   frayeurs: 1,   courte: 1 / 6,  niveau: 3, genants: true },
+  brutale: { gorgees: 1.5, frayeurs: 1.3, courte: 1 / 4,  niveau: 3, genants: true }
+};
+const K = () => INTENSITES[S.intensite] || INTENSITES.normale;
+const gorgees = x => Math.max(1, Math.round(x * K().gorgees));
+/* Les cartes qui touchent à l'intime : elles restent dans la boîte en Douce. */
+const GENANTS = ["dernière photo", "dernier message", "dernier mensonge", "slow", "pire rendez-vous", "message à son ex", "cadavres dans son placard"];
 const mouvementReduit = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const lire = c => { try { return JSON.parse(localStorage.getItem(c)); } catch { return null; } };
 const ecrire = (c, v) => { try { localStorage.setItem(c, JSON.stringify(v)); return true; } catch { return false; /* sans mémoire, le jeu marche quand même */ } };
@@ -1490,18 +1531,34 @@ function chuchote(texte, fond = .22) {
   }
   return parleSysteme(texte);
 }
+/* Plusieurs phrases à la suite sur l'écran du coup (le commentaire, puis le compte des vivants) : comme raconte, chacune part quand la précédente
+   se termine, mais sans garde de 45 s ni écran d'histoire : seul compte que l'écran du coup soit encore là. La voix du système dit le tout sur un rejet. */
+function chuchoteSuite(textes, fond = .22) {
+  murmure(fond);
+  const tout = textes.join(" ");
+  if (!voixActive()) return parleSysteme(tout);
+  Promise.all(textes.map(t => geminiParle(t)))
+    .then(bufs => {
+      if ($("ecr-coup").hidden) return;
+      if (bufs.some(b => !b)) { parleSysteme(tout); return; }
+      let quand = ac.currentTime + .15;
+      bufs.forEach(b => { chaineHorrifique(ac, b, sortie, quand); quand += b.duration / (ECHOS[S.echo] || ECHOS.sec).vitesse + .6; });
+    })
+    .catch(() => { if (!$("ecr-coup").hidden) parleSysteme(tout); });
+  return true;
+}
 /* Les répliques de la partie, tirées une fois par joueur dès « Lancer » (un chuchot, un ordre, un appel : le quota ne permet pas plus), et
    demandées à Gemini d'avance en préchargement, joueur par joueur dans l'ordre de la table. La file cadence les envois. */
 function tireRepliques() {
   S.repliques = {};
   S.joueurs.forEach(j => {
-    S.repliques[j.nom] = { chuchots: melange(CHUCHOTS).slice(0, 1).map(t => t.replaceAll("{nom}", j.nom)), telephone: [tire(AU_TELEPHONE).replaceAll("{nom}", j.nom)], ordre: "donne-le à " + j.nom };
+    S.repliques[j.nom] = { chuchots: melange(CHUCHOTS).slice(0, 1).map(t => t.replaceAll("{nom}", j.nom)), telephone: [tire(AU_TELEPHONE).replaceAll("{nom}", j.nom)], ordre: "donne-le à " + j.nom, non: "...non. " + j.nom + "." };
   });
 }
 function prechargeTexte(t) { geminiParle(t, GEMINI.voix, GEMINI.style, false).catch(() => { /* la réplique sera redemandée au moment de la dire */ }); }
 function prechargeVoix() {
   if (!voixActive()) return;
-  S.joueurs.forEach(j => { const r = S.repliques[j.nom]; [...r.chuchots, r.ordre, ...r.telephone].forEach(prechargeTexte); });
+  S.joueurs.forEach(j => { const r = S.repliques[j.nom]; [...r.chuchots, r.ordre, ...r.telephone, r.non].forEach(prechargeTexte); });
 }
 /* Le téléphone commente la manche : une phrase écrite par Gemini sur les faits (qui a brûlé, qui a traîné), dite par la voix.
    Sans clé, en panne ou trop lent (2,5 s), un gabarit local prend la place : la table ne voit jamais la différence d'attente. */
@@ -1528,6 +1585,7 @@ function promptCommentaire(f) {
   ];
   if (f.lent) l.push("Celui qui l'a gardé le plus longtemps : " + f.lent + ", " + f.lentSecondes + " secondes.");
   if (f.morts.length) l.push("Déjà sortis de la table : " + f.morts.join(", ") + ".");
+  if (f.histoire) l.push("La manche était une histoire à continuer : " + f.perdant + " meurt dans l'histoire.");
   return l.join("\n");
 }
 async function commenteGemini(f) {
@@ -1543,7 +1601,7 @@ function faitsDeManche(perdant) {
   return {
     perdant: perdant.nom, marques: perdant.marques, but: S.but, manche: S.manche, passes: S.passes, duree: Math.round(S.duree / 1000),
     lent: lent && lent !== perdant && lent.tenu > 0 ? lent.nom : null, lentSecondes: lent ? Math.round(lent.tenu / 1000) : 0,
-    elimine: S.mode === "survivant" && perdant.marques >= S.but, morts: S.joueurs.filter(x => x.elimine && x !== perdant).map(x => x.nom)
+    elimine: S.mode === "survivant" && perdant.marques >= S.but, morts: S.joueurs.filter(x => x.elimine && x !== perdant).map(x => x.nom), histoire: S.histoire
   };
 }
 function messageErreur(e) {
@@ -1556,8 +1614,8 @@ function messageErreur(e) {
   return s ? "erreur " + s : "réseau ou décodage : " + (e && e.message);
 }
 function etatVoix() {
-  const n = $("note-voix"), tete = "Cassette v3.14 · ";
-  if (S.voix !== "gemini") { n.textContent = (S.voix === "aucune" ? "voix coupées" : "voix du système choisie") + " · Cassette v3.14"; return; }
+  const n = $("note-voix"), tete = "Cassette v3.16 · ";
+  if (S.voix !== "gemini") { n.textContent = (S.voix === "aucune" ? "voix coupées" : "voix du système choisie") + " · Cassette v3.16"; return; }
   if (cleGemini || cleCloud) {
     const fin = "clé …" + [cleGemini, cleCloud].filter(Boolean).map(c => c.slice(-4)).join(" + …") + " · voix Gemini : ";
     n.textContent = tete + fin + "vérification...";
@@ -1596,7 +1654,7 @@ function changeFond() {
 }
 
 /* ---------- La partie ---------- */
-const S = { noms: [], joueurs: [], but: 3, mode: "classique", musique: "cave", echo: "sec", voix: "gemini", manche: 0, cur: 0, sens: 1, question: "", ecoule: 0, duree: 0, passes: 0, enCours: false, dernier: 0, minuteur: null, battement: null, verrouPasse: null, frayeurs: [], noirT: null, alerteT: null, bandeauT: null, appelT: null, tenueT: null, bandeT: null, neigeT: null, ombreT: null, regardT: null, osdFige: false, poussee: null, repliques: {}, ordre: null, tenir: false, visage: -1, courte: false, malediction: null, debutTour: 0, faits: null, commentaire: null, premierMort: null, puni: "", histoires: {}, comptee: false, ecranAvant: "ecr-depart" };
+const S = { noms: [], joueurs: [], but: 3, mode: "classique", intensite: "normale", musique: "cave", echo: "sec", voix: "gemini", manche: 0, cur: 0, sens: 1, question: "", ecoule: 0, duree: 0, passes: 0, enCours: false, dernier: 0, minuteur: null, battement: null, verrouPasse: null, frayeurs: [], noirT: null, alerteT: null, bandeauT: null, appelT: null, tenueT: null, bandeT: null, neigeT: null, ombreT: null, regardT: null, osdFige: false, poussee: null, repliques: {}, ordre: null, tenir: false, visage: -1, courte: false, malediction: null, debutTour: 0, faits: null, commentaire: null, premierMort: null, puni: "", histoires: {}, histoire: false, nomT: null, comptee: false, ecranAvant: "ecr-depart" };
 const ECRANS = ["ecr-depart", "ecr-manche", "ecr-jeu", "ecr-coup", "ecr-carte", "ecr-fin", "ecr-histoire", "ecr-stats", "ecr-demo"];
 function montre(id) { ECRANS.forEach(e => { $(e).hidden = e !== id; }); $(id).scrollTop = 0; document.body.classList.toggle("joue", ["ecr-jeu", "ecr-manche", "ecr-histoire", "ecr-demo"].includes(id)); }
 function osd(gauche, droite) { $("osd-gauche").textContent = gauche; $("osd-temps").textContent = droite; }
@@ -1663,6 +1721,28 @@ function dessineJoueurs() {
   $("lancer").disabled = manque > 0;
   $("lancer").textContent = manque > 0 ? (manque === 1 ? "Encore 1 joueur" : manque === 3 ? "Ajoute au moins 3 joueurs" : "Encore " + manque + " joueurs") : "Lancer la cassette";
 }
+/* Les questions de l'hôte : trente au plus, gardées dans ce téléphone (tm-questions), mêlées au paquet à chaque nouvelle partie. */
+function vosQuestions() {
+  const q = lire("tm-questions");
+  return Array.isArray(q) ? q.filter(x => typeof x === "string" && x.trim()).slice(0, 30) : [];
+}
+/* Les questions du jeu au niveau de l'intensité, puis celles de l'hôte, toujours. */
+const questionsDuPaquet = () => [...QUESTIONS.filter(q => q[1] <= K().niveau).map(q => q[0]), ...vosQuestions()];
+function dessineQuestions() {
+  $("liste-questions").replaceChildren(...vosQuestions().map(q => {
+    const li = document.createElement("li"), sp = document.createElement("span"), b = document.createElement("button");
+    sp.textContent = q;
+    b.type = "button"; b.textContent = "×"; b.setAttribute("aria-label", "Retirer " + q);
+    b.addEventListener("click", () => { ecrire("tm-questions", vosQuestions().filter(x => x !== q)); dessineQuestions(); });
+    li.append(sp, b);
+    return li;
+  }));
+}
+function ajouteQuestion() {
+  const tape = $("question-perso").value.trim(), gardees = vosQuestions();
+  if (tape && gardees.length < 30 && !gardees.some(q => q.toLowerCase() === tape.toLowerCase())) { ecrire("tm-questions", [...gardees, tape]); dessineQuestions(); }
+  $("question-perso").value = "";
+}
 function ajouteNom() {
   const tape = $("nom").value.trim();
   if (!tape) return;
@@ -1692,9 +1772,14 @@ function nouvellePartie() {
   ecrire("tm-mode", S.mode);
   S.musique = (document.querySelector('input[name="musique"]:checked') || {}).value || "cave";
   ecrire("tm-musique", S.musique);
+  S.intensite = (document.querySelector('input[name="intensite"]:checked') || {}).value || "normale";
+  ecrire("tm-intensite", S.intensite);
   prechargeHistoire();
   tireRepliques(); prechargeVoix();
-  S.manche = 0; S.sens = 1; S.courte = false; S.malediction = null; S.premierMort = null; S.puni = ""; S.comptee = false;
+  if (S.mode === "survivant" && voixActive()) for (let n = 2; n < S.joueurs.length; n++) prechargeTexte(VIVANTS[n]);
+  prochaineQuestion = paquet(questionsDuPaquet());
+  prochaineCarte = paquet(K().genants ? CARTES : CARTES.filter(c => !GENANTS.some(g => c[1].includes(g))));
+  S.manche = 0; S.histoire = false; S.sens = 1; S.courte = false; S.malediction = null; S.premierMort = null; S.puni = ""; S.comptee = false;
   S.cur = Math.floor(Math.random() * S.joueurs.length);
   document.title = "Le Téléphone Maudit";
   demarreCassette();
@@ -1715,14 +1800,16 @@ function ouvreHistoire() {
 }
 function ouvreManche() {
   S.manche++; S.sens = 1;
-  S.question = prochaineQuestion();
+  S.histoire = !S.courte && S.manche >= 2 && Math.random() < .2;
+  S.question = S.histoire ? tire(DEBUTS[S.musique] || DEBUTS.cave) : prochaineQuestion();
   danger(0);
   document.documentElement.style.setProperty("--usure", usure().toFixed(2));
   $("manche-fond").src = "img/peur-" + (1 + Math.floor(Math.random() * 3)) + ".jpg";
   changeFond();
   osd("REC · MANCHE " + S.manche, "▶ SP");
   $("manche-question").textContent = S.question;
-  $("manche-qui").textContent = S.joueurs[S.cur].nom + (S.courte ? " commence, désigné par la table. La mèche sera courte." : condamne() ? " commence. Il te veut." : " commence. Prépare ta réponse.");
+  $("manche-etiquette").textContent = S.histoire ? "Histoire de la manche" : vosQuestions().includes(S.question) ? "Question de la table" : "Question de la manche";
+  $("manche-qui").textContent = S.joueurs[S.cur].nom + (S.histoire ? " commence. Ajoute une phrase à l'histoire, à voix haute, puis passe-le." : S.courte ? " commence, désigné par la table. La mèche sera courte." : condamne() ? " commence. Il te veut." : " commence. Prépare ta réponse.");
   /* Le récap : dès la deuxième manche, marques et gorgées de chacun, sous la question. */
   $("manche-recap").hidden = S.manche < 2;
   dessineTableau($("manche-tableau"), false, true);
@@ -1737,6 +1824,7 @@ function majBoutonPasser() {
   b.textContent = (S.tenir ? "Tiens-le pour " : "Passer à ") + S.joueurs[suivantIndex()].nom;
 }
 function dessineTour() {
+  clearTimeout(S.nomT); S.nomT = null;
   const j = S.joueurs[S.cur];
   $("jeu-nom").textContent = j.nom;
   $("jeu-nom").classList.toggle("condamne", condamne());
@@ -1754,9 +1842,9 @@ function lanceMeche() {
   S.joueurs.forEach(j => { j.tenu = 0; });
   document.documentElement.style.setProperty("--avance", 0);
   const u = usure(), morts = S.joueurs.filter(j => j.elimine).length;
-  /* Une mèche sur six est courte : le premier porteur n'est jamais à l'abri. Les autres raccourcissent avec l'usure.
+  /* Une mèche sur six est courte (une sur dix en Douce, une sur quatre en Brutale) : le premier porteur n'est jamais à l'abri. Les autres raccourcissent avec l'usure.
      Désigné par une accusation : courte à coup sûr. En Survivant, chaque éliminé la raccourcit encore (jamais sous 8 s). */
-  const base = (S.courte || Math.random() < 1 / 6 ? hasard(8, 15) : hasard(28 - 10 * u, 72 - 12 * u)) * 1000;
+  const base = (S.courte || Math.random() < K().courte ? hasard(8, 15) : hasard(28 - 10 * u, 72 - 12 * u)) * 1000;
   S.duree = Math.max(8000, base * Math.max(.4, 1 - .15 * morts));
   S.courte = false;
   planifieFrayeurs();
@@ -1880,7 +1968,7 @@ function secoue() {
 /* Les frayeurs de la mèche : planifiées sur le temps écoulé, donc la pause les retient aussi. Plus la cassette est usée, plus il y en a. */
 function planifieFrayeurs() {
   const d = S.duree, u = usure(), liste = [];
-  const parfois = (prob, a, f, leger) => { if (Math.random() < prob) liste.push({ a, f, leger }); };
+  const parfois = (prob, a, f, leger) => { if (Math.random() < Math.min(1, prob * K().frayeurs)) liste.push({ a, f, leger }); };
   /* Les frayeurs légères (ombre, regard) ne comptent pas dans l'espacement : elles peuvent tomber n'importe quand, dès les premières secondes. */
   parfois(.6 + .2 * u, hasard(.04, .6) * d, passage, true);
   parfois(.35 + .3 * u, hasard(.3, .95) * d, passage, true);
@@ -1892,7 +1980,9 @@ function planifieFrayeurs() {
     parfois(.7 + .2 * u, hasard(.15, .9) * d, chuchotement);
     parfois(.6 + .2 * u, hasard(.15, .8) * d, appel);
     if (S.joueurs.filter(j => !j.elimine).length >= 4) parfois(.6 + .2 * u, hasard(.12, .7) * d, ordre);
-    if (Math.random() < .45 + .1 * u) {
+    if (!S.histoire) parfois(.25, hasard(.4, .8) * d, saute);
+    if (S.joueurs.filter(j => !j.elimine).length >= 3) parfois(.35 + .15 * u, hasard(.2, .8) * d, mauvaisNom);
+    if (Math.random() < Math.min(1, (.45 + .1 * u) * K().frayeurs)) {
       /* Deux poussées sur cinq sont posées pour que la mèche finisse au sommet. */
       const mortel = Math.random() < .4, duree = hasard(mortel ? 4 : 3, 6) * 1000;
       liste.push({ a: mortel ? d - hasard(3600, duree - 400) : hasard(.4, .85) * d, f: () => demarrePoussee(duree) });
@@ -1935,6 +2025,34 @@ function ordre() {
   setTimeout(() => $("jeu-milieu").classList.remove("glitch"), 220);
   chuchote(S.repliques[nom] ? S.repliques[nom].ordre : "donne-le à " + nom, .35);
   majBoutonPasser();
+}
+/* La cassette saute : la question change en pleine mèche, sans voix. Jamais pendant une histoire, qui ne se remplace pas. */
+function saute() {
+  if (!S.enCours || S.histoire) return;
+  S.question = prochaineQuestion();
+  $("jeu-question").textContent = S.question;
+  $("jeu-milieu").classList.add("glitch");
+  setTimeout(() => $("jeu-milieu").classList.remove("glitch"), 220);
+  bandeauJeu("...NON. AUTRE CHOSE.");
+  murmure(.3);
+}
+/* Le mauvais prénom : un autre prénom vivant de la table à la place du porteur pendant 900 ms, puis le téléphone se reprend (bandeau et voix, tampon
+   préchargé au lancement). Une passe ou l'explosion pendant ces 900 ms l'annule (dessineTour, explose) ; le battement ne le touche pas (battre). */
+function mauvaisNom() {
+  if (!S.enCours || S.nomT) return;
+  const autres = S.joueurs.filter((x, i) => i !== S.cur && !x.elimine);
+  if (!autres.length) return;
+  $("jeu-nom").textContent = tire(autres).nom;
+  $("jeu-milieu").classList.add("glitch");
+  setTimeout(() => $("jeu-milieu").classList.remove("glitch"), 220);
+  S.nomT = setTimeout(() => {
+    S.nomT = null;
+    const j = S.joueurs[S.cur], r = S.repliques[j.nom];
+    $("jeu-nom").textContent = j.nom;
+    if (!S.enCours) return;
+    bandeauJeu("...NON. " + j.nom.toUpperCase() + ".");
+    chuchote(r ? r.non : "...non. " + j.nom + ".", .3);
+  }, 900);
 }
 /* L'appel entrant : il sonne en pleine mèche et couvre tout l'écran tant qu'on n'a pas répondu. La mèche brûle pendant ce temps. */
 let sonnerie = null;
@@ -2004,8 +2122,8 @@ function battre() {
   if (r > .5 - .25 * u && Math.random() < .14 + .16 * u && !mouvementReduit()) {
     const nom = $("jeu-nom"), vrai = S.joueurs[S.cur].nom;
     $("jeu-milieu").classList.add("glitch");
-    if (Math.random() < .5) nom.textContent = tire(MURMURES);
-    setTimeout(() => { $("jeu-milieu").classList.remove("glitch"); if (S.joueurs[S.cur].nom === vrai) nom.textContent = vrai; }, 160);
+    if (!S.nomT && Math.random() < .5) nom.textContent = tire(MURMURES);
+    setTimeout(() => { $("jeu-milieu").classList.remove("glitch"); if (S.joueurs[S.cur].nom === vrai && !S.nomT) nom.textContent = vrai; }, 160);
   }
   const bpm = 56 + 124 * Math.pow(r, 1.4) + (veut ? 20 : 0);
   S.battement = setTimeout(battre, 60000 / bpm);
@@ -2049,6 +2167,7 @@ function explose() {
   suspendsMeche(true, true);
   clearTimeout(S.verrouPasse);
   clearTimeout(S.noirT); clearTimeout(S.alerteT); clearTimeout(S.bandeauT);
+  clearTimeout(S.nomT); S.nomT = null;
   cacheVisage();
   ["jeu-alerte", "jeu-ordre", "jeu-malediction", "pause-btn"].forEach(id => { $(id).hidden = true; });
   const j = S.joueurs[S.cur];
@@ -2078,12 +2197,13 @@ function explose() {
 function afficheCoup(j) {
   danger(.55);
   osd("REC · MANCHE " + S.manche, "■ STOP");
-  const n = Math.min(j.marques + 1, 4), fini = j.marques >= S.but, survivant = S.mode === "survivant";
+  const n = gorgees(Math.min(j.marques + 1, 4)), fini = j.marques >= S.but, survivant = S.mode === "survivant";
   j.gorgees += n;
   const prof = profil(j.nom); prof.marques++; prof.gorgees += n; ecrisProfils();
   /* En Survivant, le compte atteint sort le joueur de la table ; la partie finit quand il n'en reste qu'un. */
   if (fini && survivant) { j.elimine = true; if (!S.premierMort) S.premierMort = j; }
   const vivants = S.joueurs.filter(x => !x.elimine), finPartie = fini && (!survivant || vivants.length <= 1);
+  if (S.faits) S.faits.vivants = vivants.length;
   $("coup-nom").textContent = j.nom;
   const m = $("coup-marques");
   m.setAttribute("aria-label", j.marques + " marques sur " + S.but);
@@ -2095,8 +2215,9 @@ function afficheCoup(j) {
   t.textContent = "";
   const g = document.createElement("span");
   g.className = "gorgees";
-  g.textContent = n + " gorgées";
+  g.textContent = n + " gorgée" + (n > 1 ? "s" : "");
   if (fini && survivant && !finPartie) t.append("Il te garde. ", g, ". Tu sors de la table : tu ne réponds plus, tu bois quand on te le dit.");
+  else if (S.histoire) t.append("Il te tenait. C'est toi qui meurs dans l'histoire. ", g, ", et cette marque ne s'efface pas.");
   else t.append("Il te tenait. ", g, ", et cette marque ne s'efface pas.");
   $("coup-suite").textContent = finPartie ? (survivant ? "Voir qui survit" : "Voir ce qui t'attend") : "Continuer";
   $("coup-suite").onclick = finPartie ? ouvreFin : () => { if (j.elimine) S.cur = prochain(S.cur, S.sens); ouvreCarte(); };
@@ -2111,8 +2232,9 @@ function montreCommentaire() {
   Promise.race([S.commentaire || Promise.resolve(null), new Promise(r => setTimeout(() => r(null), 2500))]).then(texte => {
     if ($("ecr-coup").hidden || faits !== S.faits) return;
     texte = texte || commentaireLocal(faits);
-    v.textContent = texte; v.hidden = false;
-    chuchote(texte, .2);
+    const compte = S.mode === "survivant" && faits.elimine && faits.vivants >= 2 ? VIVANTS[faits.vivants] : null;
+    v.textContent = compte ? texte + " " + compte : texte; v.hidden = false;
+    if (compte) chuchoteSuite([texte, compte], .2); else chuchote(texte, .2);
   });
 }
 /* Une carte tirée du paquet, ou celle qu'on lui donne (le banc). L'accusation remplace « Fait » par les prénoms à toucher. */
@@ -2127,6 +2249,7 @@ function ouvreCarte(carte) {
   }
   const nomB = b === a ? (tous[2] || b).nom : b.nom;
   texte = texte.replaceAll("{A}", a.nom).replaceAll("{B}", nomB);
+  texte = texte.replace(/(\d+) gorgée(s?)/g, (_, x) => { const g = gorgees(Number(x)); return g + " gorgée" + (g > 1 ? "s" : ""); });
   const accusation = genre === "Accusation";
   if (accusation) texte += " À trois, tout le monde pointe du doigt. Le plus désigné reprend le téléphone, et la mèche sera courte. Touche son prénom.";
   if (bandeau) S.malediction = bandeau.replaceAll("{A}", a.nom.toUpperCase()).replaceAll("{B}", nomB.toUpperCase());
@@ -2337,13 +2460,16 @@ function retourDepart() {
 
 /* ---------- Branchements ---------- */
 $("form-nom").addEventListener("submit", e => { e.preventDefault(); ajouteNom(); });
+$("form-question").addEventListener("submit", e => { e.preventDefault(); ajouteQuestion(); });
 document.querySelectorAll('input[name="musique"]').forEach(r => r.addEventListener("click", () => { ecrire("tm-musique", r.value); apercu(r.value); }));
+/* L'intensité de la soirée : gardée dans le téléphone, lue à « Lancer » ; pas d'aperçu sonore. */
+document.querySelectorAll('input[name="intensite"]').forEach(r => r.addEventListener("click", () => { ecrire("tm-intensite", r.value); }));
 /* Le niveau d'écho : gardé dans le téléphone ; l'aperçu rejoue « il connaît ton prénom » (le cache, ou la mémoire du téléphone, ou une requête
    urgente la première fois) dans la chaîne au nouveau niveau. Sans clé la voix du système ne passe pas par la chaîne : rien à entendre. */
 /* L'interrupteur des voix : gardé dans le téléphone, il vaut pour les phrases suivantes ; revenir sur « Gemini » ne demande rien (pas d'essai). */
 document.querySelectorAll('input[name="voix"]').forEach(r => r.addEventListener("click", () => {
   S.voix = r.value; ecrire("tm-voix", r.value); taisToi();
-  if (S.voix === "gemini") $("note-voix").textContent = "Cassette v3.14"; else etatVoix();
+  if (S.voix === "gemini") $("note-voix").textContent = "Cassette v3.16"; else etatVoix();
 }));
 document.querySelectorAll('input[name="echo"]').forEach(r => r.addEventListener("click", async () => {
   S.echo = r.value; ecrire("tm-echo", r.value);
@@ -2383,12 +2509,12 @@ $("narratrice").addEventListener("change", e => {
 $("ecouter-narratrice").addEventListener("click", async () => {
   const b = $("ecouter-narratrice");
   reveilleSon(); reveilleVoix(); taisToi();
-  if (S.voix !== "gemini") { $("note-voix").textContent = "Cassette v3.14 · voix Gemini coupées sur l'accueil"; return; }
+  if (S.voix !== "gemini") { $("note-voix").textContent = "Cassette v3.16 · voix Gemini coupées sur l'accueil"; return; }
   b.textContent = "…";
   try {
     const buf = await geminiParle(DEMO[0].texte, GEMINI.narratrice, GEMINI.styleNarratrice);
-    if (buf) joueClair(buf); else $("note-voix").textContent = "Cassette v3.14 · narratrice " + GEMINI.narratrice + " : voix Gemini indisponible, touche « Garder » de nouveau.";
-  } catch (e) { $("note-voix").textContent = "Cassette v3.14 · narratrice " + GEMINI.narratrice + " : " + messageErreur(e); }
+    if (buf) joueClair(buf); else $("note-voix").textContent = "Cassette v3.16 · narratrice " + GEMINI.narratrice + " : voix Gemini indisponible, touche « Garder » de nouveau.";
+  } catch (e) { $("note-voix").textContent = "Cassette v3.16 · narratrice " + GEMINI.narratrice + " : " + messageErreur(e); }
   b.textContent = "Écouter";
 });
 document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener("change", () => { $("note-mode").hidden = r.value !== "survivant"; }));
@@ -2429,6 +2555,9 @@ if (Array.isArray(memoire)) S.noms = memoire.filter(n => typeof n === "string").
 const musiqueMemoire = lire("tm-musique");
 const radioMusique = typeof musiqueMemoire === "string" && document.querySelector('input[name="musique"][value="' + musiqueMemoire + '"]');
 if (radioMusique) radioMusique.checked = true;
+const intensiteMemoire = lire("tm-intensite");
+const radioIntensite = typeof intensiteMemoire === "string" && INTENSITES[intensiteMemoire] && document.querySelector('input[name="intensite"][value="' + intensiteMemoire + '"]');
+if (radioIntensite) radioIntensite.checked = true;
 const voixMemoire2 = lire("tm-voix");
 const radioVoix = (voixMemoire2 === "systeme" || voixMemoire2 === "aucune") && document.querySelector('input[name="voix"][value="' + voixMemoire2 + '"]');
 if (radioVoix) { radioVoix.checked = true; S.voix = voixMemoire2; }
@@ -2446,6 +2575,7 @@ lireProfils();
 S.noms.forEach(n => profil(n));
 if (S.noms.length) ecrisProfils();
 dessineJoueurs();
+dessineQuestions();
 </script>
 
 </body>
